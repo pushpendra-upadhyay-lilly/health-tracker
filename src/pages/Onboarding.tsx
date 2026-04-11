@@ -1,14 +1,17 @@
-import { Check, ChevronLeft, ChevronRight, Droplets, Utensils } from 'lucide-react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { Check, ChevronLeft, ChevronRight, Droplets, Dumbbell as DumbbellIcon, Flame, Utensils } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
-import { updateSettings } from '../db'
+import { db, updateSettings } from '../db'
+import type { Plan } from '../db/types'
 
 const STEPS = [
   { id: 'welcome', title: 'Welcome to\nBody Sync', subtitle: 'Your personal fitness companion' },
   { id: 'profile', title: 'About You', subtitle: "Let's personalize your experience" },
   { id: 'goals', title: 'Your Goals', subtitle: 'Set daily targets' },
+  { id: 'plan', title: 'Pick a Plan', subtitle: 'Start with a sample or add your own later' },
   { id: 'done', title: "You're all set!", subtitle: 'Start tracking your progress' },
 ]
 
@@ -20,6 +23,9 @@ export default function Onboarding() {
   const [goalWeight, setGoalWeight] = useState('')
   const [waterGoal, setWaterGoal] = useState('3000')
   const [calorieGoal, setCalorieGoal] = useState('2000')
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
+
+  const plans = useLiveQuery(() => db.plans.toArray(), [])
 
   const isLast = step === STEPS.length - 1
 
@@ -32,7 +38,12 @@ export default function Onboarding() {
         waterGoal: parseInt(waterGoal) || 3000,
         calorieGoal: parseInt(calorieGoal) || 2000,
         onboardingCompleted: true,
+        activePlanId: selectedPlanId,
       })
+      if (selectedPlanId) {
+        await db.plans.toCollection().modify({ isActive: false })
+        await db.plans.update(selectedPlanId, { isActive: true })
+      }
       navigate('/', { replace: true })
     } else {
       setStep((s) => s + 1)
@@ -59,7 +70,7 @@ export default function Onboarding() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex flex-col justify-center">
+      <div className={`flex-1 flex flex-col ${step === 3 ? 'overflow-y-auto' : 'justify-center'}`}>
         {step === 0 && (
           <div className="space-y-6">
             <div className="w-20 h-20 bg-[#00FF87]/10 rounded-3xl flex items-center justify-center mb-8">
@@ -158,23 +169,58 @@ export default function Onboarding() {
         )}
 
         {step === 3 && (
+          <div className="space-y-3 py-2">
+            <div className="mb-4">
+              <h1 className="text-3xl font-black text-white mb-1">{STEPS[3].title}</h1>
+              <p className="text-[#A0A0A0] text-sm">{STEPS[3].subtitle}</p>
+            </div>
+
+            {/* Skip option */}
+            <button
+              onClick={() => setSelectedPlanId(null)}
+              className={`w-full text-left p-4 rounded-2xl border-2 transition-all ${
+                selectedPlanId === null
+                  ? 'border-[#00FF87] bg-[#00FF87]/5'
+                  : 'border-[#2A2A2A] bg-[#1A1A1A]'
+              }`}
+            >
+              <p className="text-sm font-bold text-white">I'll add my own plan later</p>
+              <p className="text-xs text-[#555555] mt-0.5">Start fresh and build a custom plan</p>
+            </button>
+
+            {/* Sample plans */}
+            {plans?.map((plan) => (
+              <PlanCard
+                key={plan.id}
+                plan={plan}
+                selected={selectedPlanId === plan.id}
+                onSelect={() => setSelectedPlanId(plan.id)}
+              />
+            ))}
+          </div>
+        )}
+
+        {step === 4 && (
           <div className="space-y-6">
             <div className="w-20 h-20 bg-[#00FF87]/10 rounded-3xl flex items-center justify-center mb-8">
               <Check size={40} className="text-[#00FF87]" />
             </div>
             <div>
               <h1 className="text-3xl font-black text-white mb-2">
-                {name ? `Ready, ${name}!` : STEPS[3].title}
+                {name ? `Ready, ${name}!` : STEPS[4].title}
               </h1>
-              <p className="text-[#A0A0A0]">{STEPS[3].subtitle}</p>
+              <p className="text-[#A0A0A0]">{STEPS[4].subtitle}</p>
             </div>
             <div className="bg-[#1A1A1A] rounded-2xl p-4 space-y-3">
               <SummaryRow label="Water Goal" value={`${parseInt(waterGoal) >= 1000 ? (parseInt(waterGoal) / 1000).toFixed(1) + 'L' : waterGoal + 'ml'}`} />
               <SummaryRow label="Calorie Goal" value={`${calorieGoal} kcal`} />
               {height && <SummaryRow label="Height" value={`${height} cm`} />}
               {goalWeight && <SummaryRow label="Goal Weight" value={`${goalWeight} kg`} />}
+              <SummaryRow
+                label="Plan"
+                value={selectedPlanId ? (plans?.find((p) => p.id === selectedPlanId)?.name ?? '—') : 'Custom (add later)'}
+              />
             </div>
-            <p className="text-xs text-[#555555] text-center">Create your first workout plan from the Dashboard</p>
           </div>
         )}
       </div>
@@ -188,7 +234,7 @@ export default function Onboarding() {
           disabled={!canProceed()}
           icon={isLast ? <Check size={18} /> : <ChevronRight size={18} />}
         >
-          {isLast ? 'Start Tracking' : step === 0 ? 'Get Started' : 'Continue'}
+          {isLast ? 'Start Tracking' : step === 0 ? 'Get Started' : step === 3 ? (selectedPlanId ? 'Use This Plan' : 'Skip for Now') : 'Continue'}
         </Button>
         {step > 0 && (
           <button
@@ -213,7 +259,47 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-// Missing import
+function PlanCard({ plan, selected, onSelect }: { plan: Plan; selected: boolean; onSelect: () => void }) {
+  const days = plan.weekTemplate.filter((d) => !d.isRest).length
+  return (
+    <button
+      onClick={onSelect}
+      className={`w-full text-left p-4 rounded-2xl border-2 transition-all ${
+        selected ? 'border-[#00FF87] bg-[#00FF87]/5' : 'border-[#2A2A2A] bg-[#1A1A1A]'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-white leading-snug">{plan.name}</p>
+          {plan.description && (
+            <p className="text-xs text-[#555555] mt-0.5 line-clamp-2">{plan.description}</p>
+          )}
+        </div>
+        {selected && (
+          <div className="flex-shrink-0 w-5 h-5 rounded-full bg-[#00FF87] flex items-center justify-center mt-0.5">
+            <Check size={12} className="text-[#0D0D0D]" />
+          </div>
+        )}
+      </div>
+      <div className="flex gap-3 mt-2">
+        <span className="flex items-center gap-1 text-[10px] text-[#555555]">
+          <DumbbellIcon size={10} className="text-[#00FF87]" />
+          {days} days/week
+        </span>
+        <span className="flex items-center gap-1 text-[10px] text-[#555555]">
+          <Flame size={10} className="text-[#FF6B35]" />
+          {plan.calorieTarget} kcal target
+        </span>
+        <span className="flex items-center gap-1 text-[10px] text-[#555555]">
+          <Droplets size={10} className="text-blue-400" />
+          {plan.waterTarget >= 1000 ? (plan.waterTarget / 1000).toFixed(1) + 'L' : plan.waterTarget + 'ml'}
+        </span>
+      </div>
+    </button>
+  )
+}
+
+// Local Dumbbell icon (used in welcome step features list)
 function Dumbbell({ size, className }: { size: number; className?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className={className}>

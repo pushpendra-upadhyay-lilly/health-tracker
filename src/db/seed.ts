@@ -1,6 +1,6 @@
 import { v4 as uuid } from 'uuid'
 import { db } from './index'
-import type { Exercise } from './types'
+import type { Exercise, Plan, PlannedExercise, DayPlan } from './types'
 
 const LIBRARY: Omit<Exercise, 'id'>[] = [
   // ── Chest ─────────────────────────────────────────────────────────────────
@@ -75,4 +75,247 @@ const LIBRARY: Omit<Exercise, 'id'>[] = [
 export async function seedExerciseLibrary(): Promise<void> {
   const exercises = LIBRARY.map((e) => ({ ...e, id: uuid() }))
   await db.exercises.bulkPut(exercises)
+}
+
+// ─── Sample Plans ────────────────────────────────────────────────────────────
+
+export async function seedSamplePlans(): Promise<void> {
+  /** Look up exercise IDs by name from the seeded library */
+  const ex = await db.exercises.toArray()
+  const byName = Object.fromEntries(ex.map((e) => [e.name, e.id]))
+
+  function pe(
+    name: string,
+    sets: number,
+    reps: number,
+    weight: number,
+    unit: Exercise['unit'],
+    restSeconds = 90,
+  ): PlannedExercise {
+    return { exerciseId: byName[name] ?? uuid(), name, sets, reps, weight, unit, restSeconds }
+  }
+
+  function rest(day: 0 | 1 | 2 | 3 | 4 | 5 | 6, label = 'Rest'): DayPlan {
+    return { dayOfWeek: day, isRest: true, label, exercises: [] }
+  }
+
+  const now = new Date().toISOString()
+
+  const plans: Plan[] = [
+    // ── 1. Strength Beginner ──────────────────────────────────────────────
+    {
+      id: uuid(), name: '5-Day Strength — Beginner',
+      description: 'Classic push/pull/legs split for beginners. Focus on form over weight.',
+      calorieTarget: 2200, waterTarget: 3000,
+      isActive: false, createdAt: now, updatedAt: now,
+      weekTemplate: [
+        rest(0),
+        { dayOfWeek: 1, isRest: false, label: 'Chest & Triceps', exercises: [
+          pe('Bench Press', 3, 10, 40, 'kg'), pe('Incline Bench Press', 3, 10, 30, 'kg'),
+          pe('Push-Ups', 2, 15, 0, 'bodyweight'), pe('Tricep Pushdown', 3, 12, 15, 'kg'),
+          pe('Overhead Tricep Extension', 2, 12, 10, 'kg'),
+        ]},
+        { dayOfWeek: 2, isRest: false, label: 'Back & Biceps', exercises: [
+          pe('Lat Pulldown', 3, 12, 40, 'kg'), pe('Seated Cable Row', 3, 12, 35, 'kg'),
+          pe('Face Pulls', 3, 15, 12, 'kg'), pe('Dumbbell Curl', 3, 12, 8, 'kg'),
+          pe('Hammer Curl', 2, 12, 8, 'kg'),
+        ]},
+        { dayOfWeek: 3, isRest: false, label: 'Legs', exercises: [
+          pe('Squat', 3, 10, 50, 'kg'), pe('Leg Press', 3, 12, 80, 'kg'),
+          pe('Leg Extension', 3, 15, 25, 'kg'), pe('Leg Curl', 3, 12, 20, 'kg'),
+          pe('Calf Raises', 3, 20, 0, 'bodyweight'),
+        ]},
+        { dayOfWeek: 4, isRest: false, label: 'Shoulders & Arms', exercises: [
+          pe('Dumbbell Shoulder Press', 3, 10, 12, 'kg'), pe('Lateral Raises', 3, 15, 5, 'kg'),
+          pe('Front Raises', 2, 12, 5, 'kg'), pe('Barbell Curl', 3, 12, 20, 'kg'),
+          pe('Skull Crushers', 3, 12, 15, 'kg'),
+        ]},
+        { dayOfWeek: 5, isRest: false, label: 'Full Body & Cardio', exercises: [
+          pe('Goblet Squat', 3, 12, 16, 'kg'), pe('Barbell Row', 3, 10, 30, 'kg'),
+          pe('Dumbbell Flyes', 3, 12, 8, 'kg'), pe('Running', 1, 1, 20, 'minutes', 0),
+        ]},
+        rest(6),
+      ],
+    },
+
+    // ── 2. Strength Intermediate ──────────────────────────────────────────
+    {
+      id: uuid(), name: '5-Day Strength — Intermediate',
+      description: 'Higher volume push/pull/legs with progressive overload. Assumes 6+ months of training.',
+      calorieTarget: 2600, waterTarget: 3500,
+      isActive: false, createdAt: now, updatedAt: now,
+      weekTemplate: [
+        rest(0),
+        { dayOfWeek: 1, isRest: false, label: 'Chest & Triceps', exercises: [
+          pe('Bench Press', 4, 8, 70, 'kg'), pe('Incline Bench Press', 4, 8, 55, 'kg'),
+          pe('Dumbbell Flyes', 3, 12, 16, 'kg'), pe('Cable Crossover', 3, 15, 15, 'kg'),
+          pe('Tricep Pushdown', 4, 12, 25, 'kg'), pe('Skull Crushers', 3, 10, 25, 'kg'),
+        ]},
+        { dayOfWeek: 2, isRest: false, label: 'Back & Biceps', exercises: [
+          pe('Deadlift', 4, 5, 100, 'kg', 180), pe('Pull-Ups', 4, 8, 0, 'bodyweight'),
+          pe('Barbell Row', 4, 8, 70, 'kg'), pe('T-Bar Row', 3, 10, 40, 'kg'),
+          pe('Barbell Curl', 4, 10, 30, 'kg'), pe('Preacher Curl', 3, 12, 20, 'kg'),
+        ]},
+        { dayOfWeek: 3, isRest: false, label: 'Legs', exercises: [
+          pe('Squat', 4, 8, 90, 'kg', 180), pe('Romanian Deadlift', 4, 10, 70, 'kg'),
+          pe('Bulgarian Split Squat', 3, 10, 22, 'kg'), pe('Leg Extension', 3, 15, 45, 'kg'),
+          pe('Leg Curl', 3, 12, 35, 'kg'), pe('Calf Raises', 4, 20, 0, 'bodyweight'),
+        ]},
+        { dayOfWeek: 4, isRest: false, label: 'Shoulders & Arms', exercises: [
+          pe('Overhead Press', 4, 8, 50, 'kg'), pe('Arnold Press', 3, 10, 18, 'kg'),
+          pe('Lateral Raises', 4, 15, 10, 'kg'), pe('Upright Row', 3, 12, 30, 'kg'),
+          pe('Barbell Curl', 3, 10, 30, 'kg'), pe('Close-Grip Bench Press', 3, 10, 50, 'kg'),
+        ]},
+        { dayOfWeek: 5, isRest: false, label: 'Full Body Power', exercises: [
+          pe('Clean and Press', 4, 5, 40, 'kg', 180), pe('Thruster', 3, 8, 30, 'kg'),
+          pe('Kettlebell Swing', 4, 15, 20, 'kg'), pe('Pull-Ups', 3, 8, 0, 'bodyweight'),
+          pe('Goblet Squat', 3, 10, 28, 'kg'),
+        ]},
+        rest(6),
+      ],
+    },
+
+    // ── 3. Weight Loss Beginner ───────────────────────────────────────────
+    {
+      id: uuid(), name: 'Weight Loss — Beginner',
+      description: 'Full-body circuits 5 days a week combined with steady-state cardio. Low rest, high rep.',
+      calorieTarget: 1700, waterTarget: 3500,
+      isActive: false, createdAt: now, updatedAt: now,
+      weekTemplate: [
+        rest(0),
+        { dayOfWeek: 1, isRest: false, label: 'Full Body Circuit A', exercises: [
+          pe('Goblet Squat', 3, 15, 12, 'kg', 45), pe('Push-Ups', 3, 15, 0, 'bodyweight', 45),
+          pe('Lunges', 3, 12, 0, 'bodyweight', 45), pe('Dumbbell Row', 3, 12, 10, 'kg', 45),
+          pe('Burpees', 3, 10, 0, 'bodyweight', 60), pe('Running', 1, 1, 20, 'minutes', 0),
+        ]},
+        { dayOfWeek: 2, isRest: false, label: 'Cardio + Core', exercises: [
+          pe('Jump Rope', 3, 1, 5, 'minutes', 60), pe('Crunches', 3, 20, 0, 'bodyweight', 45),
+          pe('Plank', 3, 1, 30, 'minutes', 45), pe('Russian Twists', 3, 20, 0, 'bodyweight', 45),
+          pe('Running', 1, 1, 25, 'minutes', 0),
+        ]},
+        { dayOfWeek: 3, isRest: false, label: 'Full Body Circuit B', exercises: [
+          pe('Squat', 3, 15, 30, 'kg', 45), pe('Dumbbell Shoulder Press', 3, 12, 8, 'kg', 45),
+          pe('Leg Press', 3, 15, 60, 'kg', 45), pe('Lat Pulldown', 3, 12, 30, 'kg', 45),
+          pe('Burpees', 3, 10, 0, 'bodyweight', 60), pe('Cycling', 1, 1, 20, 'minutes', 0),
+        ]},
+        { dayOfWeek: 4, isRest: false, label: 'HIIT + Core', exercises: [
+          pe('HIIT Intervals', 6, 1, 1, 'minutes', 60), pe('Leg Raises', 3, 15, 0, 'bodyweight', 45),
+          pe('Crunches', 3, 20, 0, 'bodyweight', 45), pe('Plank', 3, 1, 40, 'minutes', 45),
+          pe('Jump Rope', 3, 1, 3, 'minutes', 60),
+        ]},
+        { dayOfWeek: 5, isRest: false, label: 'Full Body Circuit C', exercises: [
+          pe('Kettlebell Swing', 4, 15, 12, 'kg', 45), pe('Push-Ups', 3, 20, 0, 'bodyweight', 45),
+          pe('Goblet Squat', 3, 15, 14, 'kg', 45), pe('Seated Cable Row', 3, 12, 25, 'kg', 45),
+          pe('Burpees', 3, 12, 0, 'bodyweight', 60), pe('Running', 1, 1, 20, 'minutes', 0),
+        ]},
+        rest(6),
+      ],
+    },
+
+    // ── 4. Weight Loss Intermediate ───────────────────────────────────────
+    {
+      id: uuid(), name: 'Weight Loss — Intermediate',
+      description: 'Compound lifts superset with cardio intervals. Higher intensity to maximise calorie burn.',
+      calorieTarget: 1900, waterTarget: 3500,
+      isActive: false, createdAt: now, updatedAt: now,
+      weekTemplate: [
+        rest(0),
+        { dayOfWeek: 1, isRest: false, label: 'Upper Body + HIIT', exercises: [
+          pe('Bench Press', 4, 10, 55, 'kg', 60), pe('Barbell Row', 4, 10, 55, 'kg', 60),
+          pe('Overhead Press', 3, 12, 35, 'kg', 60), pe('Pull-Ups', 3, 8, 0, 'bodyweight', 60),
+          pe('HIIT Intervals', 6, 1, 1, 'minutes', 60),
+        ]},
+        { dayOfWeek: 2, isRest: false, label: 'Lower Body + Cardio', exercises: [
+          pe('Squat', 4, 12, 65, 'kg', 75), pe('Romanian Deadlift', 4, 12, 55, 'kg', 75),
+          pe('Lunges', 3, 12, 18, 'kg', 60), pe('Leg Curl', 3, 15, 30, 'kg', 60),
+          pe('Running', 1, 1, 25, 'minutes', 0),
+        ]},
+        { dayOfWeek: 3, isRest: false, label: 'HIIT + Core', exercises: [
+          pe('Burpees', 4, 15, 0, 'bodyweight', 45), pe('Jump Rope', 4, 1, 5, 'minutes', 60),
+          pe('Ab Wheel Rollout', 3, 12, 0, 'bodyweight', 45), pe('Cable Crunch', 3, 15, 25, 'kg', 45),
+          pe('Russian Twists', 3, 20, 0, 'bodyweight', 45), pe('Leg Raises', 3, 15, 0, 'bodyweight', 45),
+        ]},
+        { dayOfWeek: 4, isRest: false, label: 'Full Body Compound', exercises: [
+          pe('Deadlift', 4, 6, 80, 'kg', 120), pe('Clean and Press', 3, 6, 35, 'kg', 120),
+          pe('Thruster', 3, 10, 25, 'kg', 90), pe('Kettlebell Swing', 4, 20, 18, 'kg', 60),
+          pe('Rowing Machine', 1, 1, 15, 'minutes', 0),
+        ]},
+        { dayOfWeek: 5, isRest: false, label: 'Cardio Endurance', exercises: [
+          pe('Running', 1, 1, 40, 'minutes', 0), pe('Jump Rope', 3, 1, 5, 'minutes', 60),
+          pe('Cycling', 1, 1, 20, 'minutes', 0),
+        ]},
+        rest(6),
+      ],
+    },
+
+    // ── 5. Abs Beginner ───────────────────────────────────────────────────
+    {
+      id: uuid(), name: 'Abs — Beginner',
+      description: '5-day core-focused program using bodyweight exercises. Builds foundational strength.',
+      calorieTarget: 2000, waterTarget: 3000,
+      isActive: false, createdAt: now, updatedAt: now,
+      weekTemplate: [
+        rest(0),
+        { dayOfWeek: 1, isRest: false, label: 'Core Basics A', exercises: [
+          pe('Crunches', 3, 20, 0, 'bodyweight', 45), pe('Plank', 3, 1, 30, 'minutes', 45),
+          pe('Leg Raises', 3, 12, 0, 'bodyweight', 45), pe('Russian Twists', 3, 20, 0, 'bodyweight', 45),
+        ]},
+        { dayOfWeek: 2, isRest: false, label: 'Core + Cardio', exercises: [
+          pe('Jump Rope', 3, 1, 5, 'minutes', 60), pe('Crunches', 3, 20, 0, 'bodyweight', 45),
+          pe('Plank', 3, 1, 30, 'minutes', 45), pe('Burpees', 2, 10, 0, 'bodyweight', 60),
+        ]},
+        { dayOfWeek: 3, isRest: false, label: 'Core Basics B', exercises: [
+          pe('Leg Raises', 4, 15, 0, 'bodyweight', 45), pe('Russian Twists', 3, 20, 0, 'bodyweight', 45),
+          pe('Plank', 3, 1, 40, 'minutes', 45), pe('Crunches', 3, 25, 0, 'bodyweight', 45),
+        ]},
+        { dayOfWeek: 4, isRest: false, label: 'Core + Cardio', exercises: [
+          pe('Running', 1, 1, 20, 'minutes', 0), pe('Crunches', 3, 20, 0, 'bodyweight', 45),
+          pe('Plank', 3, 1, 30, 'minutes', 45), pe('Russian Twists', 3, 20, 0, 'bodyweight', 45),
+        ]},
+        { dayOfWeek: 5, isRest: false, label: 'Core Basics C', exercises: [
+          pe('Crunches', 4, 25, 0, 'bodyweight', 45), pe('Leg Raises', 4, 15, 0, 'bodyweight', 45),
+          pe('Plank', 4, 1, 45, 'minutes', 45), pe('Russian Twists', 4, 20, 0, 'bodyweight', 45),
+          pe('Burpees', 2, 10, 0, 'bodyweight', 60),
+        ]},
+        rest(6),
+      ],
+    },
+
+    // ── 6. Abs Intermediate ───────────────────────────────────────────────
+    {
+      id: uuid(), name: 'Abs — Intermediate',
+      description: 'Higher volume core training with weighted exercises and full-body integration.',
+      calorieTarget: 2100, waterTarget: 3000,
+      isActive: false, createdAt: now, updatedAt: now,
+      weekTemplate: [
+        rest(0),
+        { dayOfWeek: 1, isRest: false, label: 'Weighted Core A', exercises: [
+          pe('Cable Crunch', 4, 15, 30, 'kg', 60), pe('Ab Wheel Rollout', 4, 12, 0, 'bodyweight', 60),
+          pe('Leg Raises', 4, 15, 0, 'bodyweight', 45), pe('Russian Twists', 3, 20, 0, 'bodyweight', 45),
+          pe('Plank', 3, 1, 60, 'minutes', 45),
+        ]},
+        { dayOfWeek: 2, isRest: false, label: 'Core + HIIT', exercises: [
+          pe('HIIT Intervals', 6, 1, 1, 'minutes', 60), pe('Ab Wheel Rollout', 3, 12, 0, 'bodyweight', 60),
+          pe('Cable Crunch', 3, 15, 30, 'kg', 60), pe('Burpees', 3, 15, 0, 'bodyweight', 60),
+        ]},
+        { dayOfWeek: 3, isRest: false, label: 'Weighted Core B', exercises: [
+          pe('Cable Crunch', 4, 15, 35, 'kg', 60), pe('Leg Raises', 4, 20, 0, 'bodyweight', 45),
+          pe('Ab Wheel Rollout', 4, 15, 0, 'bodyweight', 60), pe('Plank', 3, 1, 75, 'minutes', 45),
+          pe('Russian Twists', 3, 30, 0, 'bodyweight', 45),
+        ]},
+        { dayOfWeek: 4, isRest: false, label: 'Core + Cardio', exercises: [
+          pe('Running', 1, 1, 30, 'minutes', 0), pe('Cable Crunch', 3, 15, 30, 'kg', 60),
+          pe('Ab Wheel Rollout', 3, 12, 0, 'bodyweight', 60), pe('Plank', 3, 1, 60, 'minutes', 45),
+        ]},
+        { dayOfWeek: 5, isRest: false, label: 'Full Core Blast', exercises: [
+          pe('Cable Crunch', 5, 15, 35, 'kg', 60), pe('Ab Wheel Rollout', 5, 12, 0, 'bodyweight', 60),
+          pe('Leg Raises', 4, 20, 0, 'bodyweight', 45), pe('Russian Twists', 4, 30, 0, 'bodyweight', 45),
+          pe('Plank', 4, 1, 75, 'minutes', 45), pe('HIIT Intervals', 4, 1, 1, 'minutes', 60),
+        ]},
+        rest(6),
+      ],
+    },
+  ]
+
+  await db.plans.bulkPut(plans)
 }
