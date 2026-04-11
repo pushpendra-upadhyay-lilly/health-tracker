@@ -45,7 +45,7 @@ export default function Onboarding() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0D0D0D] flex flex-col px-6 py-12 safe-top safe-bottom">
+    <div className="min-h-dvh bg-[#0D0D0D] flex flex-col px-6 py-12 safe-top safe-bottom">
       {/* Step indicators */}
       <div className="flex gap-2 mb-10">
         {STEPS.map((_, i) => (

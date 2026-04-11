@@ -1,22 +1,22 @@
-import { useState, useMemo } from 'react'
-import { v4 as uuid } from 'uuid'
-import { Droplets, Plus, Flame, Trash2, Search, ChevronRight, GlassWater } from 'lucide-react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import PageHeader from '../components/layout/PageHeader'
-import Card from '../components/ui/Card'
-import Button from '../components/ui/Button'
-import ProgressRing from '../components/ui/ProgressRing'
-import Modal from '../components/ui/Modal'
-import Input from '../components/ui/Input'
-import Select from '../components/ui/Select'
+import { ChevronRight, Droplets, Flame, GlassWater, Plus, Search, Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { v4 as uuid } from 'uuid'
 import { MacroDonut } from '../components/charts/MacroDonut'
-import { useTodayWater } from '../hooks/useTodayWater'
-import { useTodayMeals } from '../hooks/useTodayMeals'
+import PageHeader from '../components/layout/PageHeader'
+import Button from '../components/ui/Button'
+import Card from '../components/ui/Card'
+import Input from '../components/ui/Input'
+import Modal from '../components/ui/Modal'
+import ProgressRing from '../components/ui/ProgressRing'
+import Select from '../components/ui/Select'
+import { FOOD_CATEGORIES, FOOD_DATABASE, calcMacros, type FoodCategory, type FoodItem } from '../data/foodDatabase'
 import { db, getSettings } from '../db'
-import type { WaterLog, MealLog, MealType } from '../db/types'
+import type { MealLog, MealType, WaterLog } from '../db/types'
+import { useTodayMeals } from '../hooks/useTodayMeals'
+import { useTodayWater } from '../hooks/useTodayWater'
+import { formatWater, pct, totalCalories, totalMacros, totalWater } from '../utils/calculations'
 import { getTodayString } from '../utils/dateHelpers'
-import { totalWater, totalCalories, totalMacros, pct, formatWater } from '../utils/calculations'
-import { FOOD_DATABASE, FOOD_CATEGORIES, calcMacros, type FoodItem, type FoodCategory } from '../data/foodDatabase'
 
 // ── Water presets: glass-based + ml ──────────────────────────────────────────
 const WATER_PRESETS = [
@@ -191,7 +191,8 @@ export default function Nutrition() {
             <Droplets size={12} className="text-blue-400" /> Water Intake
           </p>
           <Card border>
-            <div className="flex items-center gap-5">
+            {/* Ring + stats row */}
+            <div className="flex items-center gap-5 mb-4">
               <ProgressRing
                 value={waterPct}
                 size={96}
@@ -202,42 +203,42 @@ export default function Nutrition() {
               />
               <div className="flex-1">
                 <p className="text-sm font-bold text-white mb-0.5">{waterPct}% of daily goal</p>
-                <p className="text-xs text-[#555555] mb-3">{formatWater(waterGoal - waterTotal)} remaining</p>
-
-                {/* Quick-add presets: glass-based */}
-                <div className="grid grid-cols-2 gap-1.5 mb-2">
-                  {WATER_PRESETS.map(({ label, amount }) => (
-                    <button
-                      key={label}
-                      className="flex items-center justify-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-bold py-2 rounded-xl transition-all"
-                      onClick={() => addWater(amount)}
-                    >
-                      <GlassWater size={12} />
-                      +{label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Custom ml input */}
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    placeholder="Custom ml"
-                    className="flex-1 bg-[#0D0D0D] border border-[#2A2A2A] rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-[#444444] outline-none focus:border-blue-400"
-                    value={customWater}
-                    onChange={(e) => setCustomWater(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') { addWater(parseInt(customWater) || 0); setCustomWater('') }
-                    }}
-                  />
-                  <button
-                    className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-bold px-3 py-1.5 rounded-xl transition-all"
-                    onClick={() => { addWater(parseInt(customWater) || 0); setCustomWater('') }}
-                  >
-                    Add
-                  </button>
-                </div>
+                <p className="text-xs text-[#555555]">{formatWater(waterGoal - waterTotal)} remaining</p>
               </div>
+            </div>
+
+            {/* Quick-add presets: full width */}
+            <div className="grid grid-cols-2 gap-1.5 mb-2">
+              {WATER_PRESETS.map(({ label, amount }) => (
+                <button
+                  key={label}
+                  className="flex items-center justify-center gap-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-bold py-2 rounded-xl transition-all"
+                  onClick={() => addWater(amount)}
+                >
+                  <GlassWater size={11} className="text-blue-400" />
+                  +{label}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom ml input */}
+            <div className="flex gap-2">
+              <input
+                type="number"
+                placeholder="Custom ml"
+                className="flex-1 bg-[#0D0D0D] border border-[#2A2A2A] rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-[#444444] outline-none focus:border-blue-400"
+                value={customWater}
+                onChange={(e) => setCustomWater(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { addWater(parseInt(customWater) || 0); setCustomWater('') }
+                }}
+              />
+              <button
+                className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-bold px-3 py-1.5 rounded-xl transition-all"
+                onClick={() => { addWater(parseInt(customWater) || 0); setCustomWater('') }}
+              >
+                Add
+              </button>
             </div>
 
             {/* Today's entries */}
