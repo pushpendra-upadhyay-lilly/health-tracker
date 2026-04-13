@@ -147,10 +147,12 @@ export default function Workout() {
 
   const updateSetValue = async (exIdx: number, setIdx: number, field: 'actualReps' | 'actualWeight', value: number) => {
     if (!todayWorkout) return
+    const targetField = field === 'actualReps' ? 'targetReps' : 'targetWeight'
     const updated = { ...todayWorkout }
     updated.exercises[exIdx].sets[setIdx] = {
       ...updated.exercises[exIdx].sets[setIdx],
       [field]: value,
+      [targetField]: value,
     }
     await db.workoutLogs.put(updated)
   }
