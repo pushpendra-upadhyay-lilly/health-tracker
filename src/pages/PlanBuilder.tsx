@@ -300,7 +300,7 @@ export default function PlanBuilder() {
                           </button>
                         </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-4 gap-2">
                         <div>
                           <label className="text-[10px] text-[#555555] block mb-1">SETS</label>
                           <input
@@ -326,6 +326,15 @@ export default function PlanBuilder() {
                             className="w-full bg-[#1A1A1A] border border-[#2A2A2A] rounded-lg px-2 py-1.5 text-sm text-white text-center outline-none focus:border-[#00FF87]"
                             value={ex.weight}
                             onChange={(e) => updateExercise(day.dayOfWeek, idx, { weight: parseFloat(e.target.value) || 0 })}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-[#555555] block mb-1">REST(s)</label>
+                          <input
+                            type="number"
+                            className="w-full bg-[#1A1A1A] border border-[#2A2A2A] rounded-lg px-2 py-1.5 text-sm text-white text-center outline-none focus:border-[#00FF87]"
+                            value={ex.restSeconds}
+                            onChange={(e) => updateExercise(day.dayOfWeek, idx, { restSeconds: parseInt(e.target.value) || 30 })}
                           />
                         </div>
                       </div>
