@@ -12,7 +12,10 @@ export default function AppShell() {
   const { startWaterReminders, stopWaterReminders } = useNotifications()
 
   useEffect(() => {
-    if (settings?.notificationsEnabled && settings.waterReminderInterval) {
+    // Wait until settings have loaded before touching the SW timer
+    if (settings === undefined) return
+
+    if (settings.notificationsEnabled && settings.waterReminderInterval) {
       startWaterReminders(settings.waterReminderInterval)
     } else {
       stopWaterReminders()

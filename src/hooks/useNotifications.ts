@@ -5,7 +5,25 @@ import { useCallback } from 'react'
 async function postToSW(message: Record<string, unknown>) {
   if (!('serviceWorker' in navigator)) return
   const reg = await navigator.serviceWorker.ready
-  reg.active?.postMessage(message)
+  const sw = reg.active
+  if (!sw) return
+
+  // If the SW is already active just post immediately
+  if (sw.state === 'activated') {
+    sw.postMessage(message)
+    return
+  }
+
+  // Otherwise wait for it to finish activating
+  await new Promise<void>((resolve) => {
+    sw.addEventListener('statechange', function onStateChange() {
+      if (sw.state === 'activated') {
+        sw.removeEventListener('statechange', onStateChange)
+        resolve()
+      }
+    })
+  })
+  sw.postMessage(message)
 }
 
 // ─── Page-level fallback (used when SW is not available) ────────────────────
