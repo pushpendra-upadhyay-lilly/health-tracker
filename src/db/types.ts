@@ -116,6 +116,18 @@ export interface MealLog {
   createdAt: string
 }
 
+// ─── Custom Food ─────────────────────────────────────────────────────────────
+
+export interface CustomFood {
+  id: string
+  name: string
+  calories: number // per entry (absolute, not per 100g)
+  protein: number
+  carbs: number
+  fat: number
+  createdAt: string
+}
+
 // ─── Body Metrics ─────────────────────────────────────────────────────────────
 
 export interface BodyMetric {

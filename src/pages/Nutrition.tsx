@@ -12,7 +12,7 @@ import ProgressRing from '../components/ui/ProgressRing'
 import Select from '../components/ui/Select'
 import { FOOD_CATEGORIES, FOOD_DATABASE, calcMacros, type FoodCategory, type FoodItem } from '../data/foodDatabase'
 import { db, getSettings } from '../db'
-import type { MealLog, MealType, WaterLog } from '../db/types'
+import type { CustomFood, MealLog, MealType, WaterLog } from '../db/types'
 import { useTodayMeals } from '../hooks/useTodayMeals'
 import { useTodayWater } from '../hooks/useTodayWater'
 import { formatWater, pct, totalCalories, totalMacros, totalWater } from '../utils/calculations'
@@ -58,6 +58,7 @@ export default function Nutrition() {
   const waterLog = useTodayWater()
   const meals = useTodayMeals()
   const settings = useLiveQuery(() => getSettings())
+  const customFoods = useLiveQuery(() => db.customFoods.orderBy('createdAt').reverse().toArray(), []) ?? []
 
   // ── Water state ────────────────────────────────────────────────────────
   const [customWater, setCustomWater] = useState('')
@@ -95,6 +96,11 @@ export default function Nutrition() {
       return matchCat && matchSearch
     })
   }, [foodSearch, foodCategory])
+
+  const filteredCustomFoods = useMemo(() => {
+    if (!foodSearch) return customFoods
+    return customFoods.filter((f) => f.name.toLowerCase().includes(foodSearch.toLowerCase()))
+  }, [customFoods, foodSearch])
 
   // Auto-calc preview for selected food + quantity
   const preview = useMemo(() => {
@@ -150,19 +156,50 @@ export default function Nutrition() {
     resetModal()
   }
 
+  const handleAddCustomFoodMeal = async (food: CustomFood) => {
+    const meal: MealLog = {
+      id: uuid(),
+      date: getTodayString(),
+      mealType,
+      name: food.name,
+      calories: food.calories,
+      protein: food.protein,
+      carbs: food.carbs,
+      fat: food.fat,
+      createdAt: new Date().toISOString(),
+    }
+    await db.mealLogs.put(meal)
+    resetModal()
+  }
+
   const handleAddManualMeal = async () => {
+    const name = manualForm.name.trim() || 'Meal'
+    const calories = parseInt(manualForm.calories) || 0
+    const protein = parseFloat(manualForm.protein) || 0
+    const carbs = parseFloat(manualForm.carbs) || 0
+    const fat = parseFloat(manualForm.fat) || 0
+    const now = new Date().toISOString()
+
     const meal: MealLog = {
       id: uuid(),
       date: getTodayString(),
       mealType: manualForm.mealType,
-      name: manualForm.name.trim() || 'Meal',
-      calories: parseInt(manualForm.calories) || 0,
-      protein: parseFloat(manualForm.protein) || 0,
-      carbs: parseFloat(manualForm.carbs) || 0,
-      fat: parseFloat(manualForm.fat) || 0,
-      createdAt: new Date().toISOString(),
+      name,
+      calories,
+      protein,
+      carbs,
+      fat,
+      createdAt: now,
     }
     await db.mealLogs.put(meal)
+
+    // Save to food database for future reuse (skip if a custom food with same name exists)
+    const existing = await db.customFoods.where('name').equals(name).first()
+    if (!existing) {
+      const customFood: CustomFood = { id: uuid(), name, calories, protein, carbs, fat, createdAt: now }
+      await db.customFoods.put(customFood)
+    }
+
     resetModal()
   }
 
@@ -413,6 +450,30 @@ export default function Nutrition() {
 
                   {/* Food list */}
                   <div className="space-y-1.5">
+                    {/* My Foods (custom) */}
+                    {filteredCustomFoods.length > 0 && (
+                      <>
+                        <p className="text-xs font-semibold text-[#00FF87] uppercase tracking-wider pt-1 pb-0.5">My Foods</p>
+                        {filteredCustomFoods.map((food) => (
+                          <button
+                            key={food.id}
+                            className="w-full flex items-center justify-between p-3 bg-[#0D0D0D] hover:bg-[#111111] rounded-xl transition-all text-left"
+                            onClick={() => handleAddCustomFoodMeal(food)}
+                          >
+                            <div>
+                              <p className="text-sm font-semibold text-white">{food.name}</p>
+                              <p className="text-xs text-[#555555]">
+                                {food.calories} kcal · P {food.protein}g · C {food.carbs}g · F {food.fat}g
+                              </p>
+                            </div>
+                            <Plus size={14} className="text-[#00FF87] flex-shrink-0 ml-2" />
+                          </button>
+                        ))}
+                        {filteredFoods.length > 0 && (
+                          <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider pt-2 pb-0.5">Food Database</p>
+                        )}
+                      </>
+                    )}
                     {filteredFoods.map((food) => (
                       <button
                         key={food.id}
@@ -428,7 +489,7 @@ export default function Nutrition() {
                         <ChevronRight size={14} className="text-[#555555] flex-shrink-0 ml-2" />
                       </button>
                     ))}
-                    {filteredFoods.length === 0 && (
+                    {filteredFoods.length === 0 && filteredCustomFoods.length === 0 && (
                       <div className="py-8 text-center">
                         <p className="text-[#555555] text-sm">No food found</p>
                         <button

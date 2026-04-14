@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie'
-import type { Plan, WorkoutLog, WaterLog, MealLog, BodyMetric, Exercise, UserSettings } from './types'
+import type { Plan, WorkoutLog, WaterLog, MealLog, BodyMetric, Exercise, UserSettings, CustomFood } from './types'
 
 class BodySyncDB extends Dexie {
   plans!: Table<Plan, string>
@@ -9,6 +9,7 @@ class BodySyncDB extends Dexie {
   bodyMetrics!: Table<BodyMetric, string>
   exercises!: Table<Exercise, string>
   settings!: Table<UserSettings, string>
+  customFoods!: Table<CustomFood, string>
 
   constructor() {
     super('BodySyncDB')
@@ -21,6 +22,17 @@ class BodySyncDB extends Dexie {
       bodyMetrics: 'id, date',
       exercises: 'id, name, muscleGroup, isCustom',
       settings: 'key',
+    })
+
+    this.version(2).stores({
+      plans: 'id, name, isActive, createdAt',
+      workoutLogs: 'id, date, planId, completed',
+      waterLogs: 'id, date',
+      mealLogs: 'id, date, mealType, createdAt',
+      bodyMetrics: 'id, date',
+      exercises: 'id, name, muscleGroup, isCustom',
+      settings: 'key',
+      customFoods: 'id, name, createdAt',
     })
   }
 }
