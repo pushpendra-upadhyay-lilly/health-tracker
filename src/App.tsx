@@ -1,6 +1,8 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import AppShell from './components/layout/AppShell'
+import UpdatePrompt from './components/UpdatePrompt'
 import Dashboard from './pages/Dashboard'
 import Plan from './pages/Plan'
 import PlanBuilder from './pages/PlanBuilder'
@@ -61,9 +63,14 @@ function AppRoutes() {
 }
 
 export default function App() {
+  useEffect(() => {
+    if (navigator.storage?.persist) navigator.storage.persist()
+  }, [])
+
   return (
     <BrowserRouter>
       <AppRoutes />
+      <UpdatePrompt />
     </BrowserRouter>
   )
 }

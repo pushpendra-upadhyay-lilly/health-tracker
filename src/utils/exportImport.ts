@@ -1,5 +1,5 @@
 import { db } from '../db'
-import type { Plan, WorkoutLog, WaterLog, MealLog, BodyMetric, Exercise, UserSettings } from '../db/types'
+import type { Plan, WorkoutLog, WaterLog, MealLog, BodyMetric, Exercise, UserSettings, CustomFood } from '../db/types'
 
 interface ExportData {
   version: number
@@ -11,10 +11,11 @@ interface ExportData {
   mealLogs: MealLog[]
   bodyMetrics: BodyMetric[]
   exercises: Exercise[]
+  customFoods: CustomFood[]
 }
 
 export async function exportData(): Promise<void> {
-  const [settings, plans, workoutLogs, waterLogs, mealLogs, bodyMetrics, exercises] =
+  const [settings, plans, workoutLogs, waterLogs, mealLogs, bodyMetrics, exercises, customFoods] =
     await Promise.all([
       db.settings.toArray(),
       db.plans.toArray(),
@@ -22,7 +23,8 @@ export async function exportData(): Promise<void> {
       db.waterLogs.toArray(),
       db.mealLogs.toArray(),
       db.bodyMetrics.toArray(),
-      db.exercises.filter((e) => e.isCustom).toArray(), // Only export custom exercises
+      db.exercises.filter((e) => e.isCustom).toArray(),
+      db.customFoods.toArray(),
     ])
 
   const payload: ExportData = {
@@ -35,6 +37,7 @@ export async function exportData(): Promise<void> {
     mealLogs,
     bodyMetrics,
     exercises,
+    customFoods,
   }
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
@@ -55,7 +58,7 @@ export async function importData(file: File): Promise<{ success: boolean; error?
       return { success: false, error: 'Invalid backup file format' }
     }
 
-    await db.transaction('rw', [db.settings, db.plans, db.workoutLogs, db.waterLogs, db.mealLogs, db.bodyMetrics, db.exercises], async () => {
+    await db.transaction('rw', [db.settings, db.plans, db.workoutLogs, db.waterLogs, db.mealLogs, db.bodyMetrics, db.exercises, db.customFoods], async () => {
       if (data.settings?.length) await db.settings.bulkPut(data.settings)
       if (data.plans?.length) await db.plans.bulkPut(data.plans)
       if (data.workoutLogs?.length) await db.workoutLogs.bulkPut(data.workoutLogs)
@@ -63,6 +66,7 @@ export async function importData(file: File): Promise<{ success: boolean; error?
       if (data.mealLogs?.length) await db.mealLogs.bulkPut(data.mealLogs)
       if (data.bodyMetrics?.length) await db.bodyMetrics.bulkPut(data.bodyMetrics)
       if (data.exercises?.length) await db.exercises.bulkPut(data.exercises)
+      if (data.customFoods?.length) await db.customFoods.bulkPut(data.customFoods)
     })
 
     return { success: true }
