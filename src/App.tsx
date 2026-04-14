@@ -13,6 +13,7 @@ import Progress from './pages/Progress'
 import Library from './pages/Library'
 import Settings from './pages/Settings'
 import Onboarding from './pages/Onboarding'
+import AICoach from "./pages/AICoach";
 import { db } from './db'
 
 function AppRoutes() {
@@ -55,6 +56,7 @@ function AppRoutes() {
           <Route path="/progress" element={<Progress />} />
           <Route path="/library" element={<Library />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/ai" element={<AICoach />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       )}

@@ -1,12 +1,12 @@
-import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Dumbbell, Utensils, TrendingUp, MoreHorizontal } from 'lucide-react'
+import { Dumbbell, LayoutDashboard, TrendingUp, Utensils, Settings } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 
 const NAV_ITEMS = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/workout', icon: Dumbbell, label: 'Workout' },
   { to: '/nutrition', icon: Utensils, label: 'Nutrition' },
   { to: '/progress', icon: TrendingUp, label: 'Progress' },
-  { to: '/settings', icon: MoreHorizontal, label: 'More' },
+  { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 
 export default function BottomNav() {
