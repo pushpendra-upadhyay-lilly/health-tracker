@@ -4,6 +4,8 @@ import './index.css'
 import App from './App'
 import { db } from './db'
 import { seedExerciseLibrary, seedSamplePlans } from './db/seed'
+import { isNative } from './utils/platform'
+import { registerNativeNotificationActions, initNativeNotificationListeners } from './plugins/notificationActions'
 
 // Seed exercise library on first run, then seed sample plans
 db.exercises.count().then(async (count) => {
@@ -16,6 +18,12 @@ db.exercises.count().then(async (count) => {
     if (planCount === 0) await seedSamplePlans()
   }
 })
+
+// Init native notification infrastructure
+if (isNative) {
+  registerNativeNotificationActions()
+  initNativeNotificationListeners()
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

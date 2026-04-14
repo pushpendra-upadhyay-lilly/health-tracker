@@ -10,11 +10,12 @@ import Input from '../components/ui/Input'
 import { db, getSettings, updateSettings } from '../db'
 import { exportData, importData } from '../utils/exportImport'
 import { useNotifications } from '../hooks/useNotifications'
+import { isNative } from '../utils/platform'
 
 export default function Settings() {
   const navigate = useNavigate()
   const settings = useLiveQuery(() => getSettings())
-  const { requestPermission, isSupported, isGranted } = useNotifications()
+  const { requestPermission, isSupported, isGranted, scheduleWorkoutReminder, cancelWorkoutReminder, startWaterReminders, stopWaterReminders } = useNotifications()
 
   const [name, setName] = useState('')
   const [height, setHeight] = useState('')
@@ -52,6 +53,39 @@ export default function Settings() {
       if (!granted) return
     }
     await updateSettings({ notificationsEnabled: enabled })
+    // Cancel all reminders when notifications are disabled
+    if (!enabled) {
+      await cancelWorkoutReminder()
+      await stopWaterReminders()
+      await updateSettings({ workoutReminderTime: null, waterReminderInterval: null })
+    }
+  }
+
+  const handleWorkoutReminderToggle = async (enabled: boolean) => {
+    if (enabled) {
+      const time = settings?.workoutReminderTime ?? '08:00'
+      await updateSettings({ workoutReminderTime: time })
+      await scheduleWorkoutReminder(time)
+    } else {
+      await cancelWorkoutReminder()
+      await updateSettings({ workoutReminderTime: null })
+    }
+  }
+
+  const handleWorkoutReminderTimeChange = async (time: string) => {
+    await updateSettings({ workoutReminderTime: time })
+    await scheduleWorkoutReminder(time)
+  }
+
+  const handleWaterReminderToggle = async (enabled: boolean) => {
+    if (enabled) {
+      const interval = settings?.waterReminderInterval ?? 60
+      await updateSettings({ waterReminderInterval: interval })
+      await startWaterReminders(interval)
+    } else {
+      await stopWaterReminders()
+      await updateSettings({ waterReminderInterval: null })
+    }
   }
 
   const handleImport = () => {
@@ -144,7 +178,7 @@ export default function Settings() {
         </section>
 
         {/* Notifications */}
-        {isSupported && (
+        {(isSupported || isNative) && (
           <section>
             <SectionHeader icon={<Bell size={12} />} label="Notifications" />
             <Card border>
@@ -155,13 +189,29 @@ export default function Settings() {
                   label={isGranted ? 'Enable reminders' : 'Enable notifications (requires permission)'}
                 />
                 {settings?.notificationsEnabled && isGranted && (
-                  <Toggle
-                    checked={settings?.waterReminderInterval !== null}
-                    onChange={(enabled) =>
-                      updateSettings({ waterReminderInterval: enabled ? 60 : null })
-                    }
-                    label="Drink water reminder (every hour)"
-                  />
+                  <>
+                    <Toggle
+                      checked={settings?.workoutReminderTime !== null && settings?.workoutReminderTime !== undefined}
+                      onChange={handleWorkoutReminderToggle}
+                      label="Daily workout reminder"
+                    />
+                    {settings?.workoutReminderTime && (
+                      <div className="flex items-center justify-between pl-1">
+                        <span className="text-sm text-[#555555]">Reminder time</span>
+                        <input
+                          type="time"
+                          value={settings.workoutReminderTime}
+                          onChange={(e) => handleWorkoutReminderTimeChange(e.target.value)}
+                          className="bg-[#0D0D0D] border border-[#2A2A2A] rounded-lg px-3 py-1.5 text-sm text-white"
+                        />
+                      </div>
+                    )}
+                    <Toggle
+                      checked={settings?.waterReminderInterval !== null && settings?.waterReminderInterval !== undefined}
+                      onChange={handleWaterReminderToggle}
+                      label="Drink water reminder (every hour)"
+                    />
+                  </>
                 )}
               </div>
             </Card>
