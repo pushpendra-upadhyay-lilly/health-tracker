@@ -78,7 +78,7 @@ export default function Progress() {
 
   return (
     <div className="pb-32">
-      <PageHeader title="Progress" subtitle="Plan vs Actual" />
+      <PageHeader title="Progress" subtitle="Plan vs Actual" back/>
 
       <div className="px-4 space-y-5">
         {/* Range selector */}

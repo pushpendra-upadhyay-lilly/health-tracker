@@ -134,7 +134,7 @@ export default function Settings() {
 
   return (
     <div className="pb-32">
-      <PageHeader title="Settings" subtitle="Preferences & data" />
+      <PageHeader title="Settings" subtitle="Preferences & data" back/>
 
       <div className="px-4 space-y-5">
         {/* Profile */}

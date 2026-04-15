@@ -27,7 +27,7 @@ export default function Card({
   return (
     <div
       className={`
-        bg-[#1A1A1A] rounded-[16px]
+        bg-[#1A1A1A] rounded-xl
         ${PADDING_STYLES[padding]}
         ${hover ? 'hover:bg-[#252525] transition-colors duration-150 cursor-pointer' : ''}
         ${active ? 'bg-[#252525]' : ''}

@@ -63,7 +63,7 @@ export default function Nutrition() {
 
   return (
     <div className="pb-32">
-      <PageHeader title="Nutrition" subtitle="Water & Diet" />
+      <PageHeader title="Nutrition" subtitle="Water & Diet" back/>
 
       <div className="px-4 space-y-5">
         {/* ── Water Section ───────────────────────────────────────────── */}

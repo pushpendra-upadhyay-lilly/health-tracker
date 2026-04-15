@@ -215,6 +215,7 @@ export default function Workout() {
       <PageHeader
         title="Today's Workout"
         subtitle={`${activePlan.name} · ${DAY_FULL_LABELS[todayDOW]}`}
+        back
       />
 
       <div className="px-4 space-y-4">

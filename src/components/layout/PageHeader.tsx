@@ -23,7 +23,7 @@ export default function PageHeader({ title, subtitle, back, right }: PageHeaderP
         {back !== undefined && (
           <button
             onClick={handleBack}
-            className="p-2 -ml-2 rounded-xl text-[#A0A0A0] hover:text-white hover:bg-[#1A1A1A] transition-all"
+            className="p-2 -ml-2 rounded-xl text-[#A0A0A0] border border-[#333333]"
             aria-label="Go back"
           >
             <ChevronLeft size={22} />

@@ -54,7 +54,7 @@ export default function SwipeToDelete({ onDelete, children, threshold = 80 }: Sw
   return (
     <div className="relative overflow-hidden rounded-xl">
       {/* Delete background */}
-      <div className="absolute inset-0 flex items-center justify-end bg-[#FF4757] rounded-xl">
+      <div className="absolute inset-0 flex items-center justify-end bg-[#FF4757] rounded-xl border border-solid border-black">
         <span className="text-white text-xs font-bold pr-4">Delete</span>
       </div>
       {/* Swipeable content */}
