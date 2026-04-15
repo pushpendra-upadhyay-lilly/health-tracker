@@ -20,8 +20,7 @@ import CompactState from '../components/CompactState'
 const WATER_PRESETS = [
   { label: '½ glass', amount: 125 },
   { label: '1 glass', amount: 250 },
-  { label: '500ml', amount: 500 },
-  { label: '1L', amount: 1000 },
+  { label: '2 glasses', amount: 500 },
 ]
 
 export default function Dashboard() {
@@ -179,12 +178,12 @@ export default function Dashboard() {
             {formatWater(waterTotal)} / {formatWater(waterGoal)}
           </span>
         </div>
-        <div className="grid grid-cols-4 gap-1.5 mb-2">
+        <div className="flex stretch gap-1.5 mb-2">
           {WATER_PRESETS.map(({ label, amount }) => (
             <button
               key={label}
               onClick={() => addWater(amount)}
-              className="flex flex-col items-center justify-center gap-0.5 bg-blue-500/10 hover:bg-blue-500/20 active:scale-95 text-blue-400 text-[10px] font-bold py-2 rounded-xl transition-all"
+              className="flex flex-auto flex-col items-center justify-center gap-0.5 bg-blue-500/10 hover:bg-blue-500/20 active:scale-95 text-blue-400 text-[10px] font-bold py-2 rounded-lg transition-all"
             >
               <GlassWater size={12} />
               +{label}
@@ -209,25 +208,25 @@ export default function Dashboard() {
       <div className="mb-4">
         <p className="text-xs text-[#666666] uppercase tracking-wider font-semibold mb-3">AI Assistant</p>
         <div className="grid grid-cols-2 gap-3">
-          <Card padding="md" hover border className="border-[#00FF87]/10" onClick={() => navigate('/ai?mode=feedback')}>
+          <Card padding="sm" hover border className="border-green-400" onClick={() => navigate('/ai?mode=feedback')}>
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-[#00FF87]/10 rounded-xl flex items-center justify-center shrink-0">
                 <Sparkles size={18} className="text-[#00FF87]" />
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-white">AI Coach</p>
-                <p className="text-xs text-[#555555]">Analyze progress</p>
+                <p className="text-xs text-[#555555]">Analyze your progress</p>
               </div>
             </div>
           </Card>
-          <Card padding="md" hover border className="border-[#FF6B35]/10" onClick={() => navigate('/ai?mode=plan')}>
+          <Card padding="md" hover border className="border-[#FF6B35]" onClick={() => navigate('/ai?mode=plan')}>
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-[#FF6B35]/10 rounded-xl flex items-center justify-center shrink-0">
                 <Wand2 size={18} className="text-[#FF6B35]" />
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-white">AI Plan</p>
-                <p className="text-xs text-[#555555]">Create with AI</p>
+                <p className="text-sm font-semibold text-white">AI Planner</p>
+                <p className="text-xs text-[#555555]">Plan your workouts</p>
               </div>
             </div>
           </Card>
