@@ -1,7 +1,22 @@
 import { format, subDays } from "date-fns";
 import { db, getSettings } from "../db";
 
+// ── Module-level cache ────────────────────────────────────────────────────────
+const TTL_MS = 5 * 60 * 1000 // 5 minutes
+
+let healthContextCache: { value: string; expiresAt: number } | null = null
+let exerciseContextCache: { value: string; expiresAt: number } | null = null
+
+/** Call this whenever data that feeds buildHealthContext changes (e.g. after logging a meal). */
+export function invalidateHealthContext() {
+  healthContextCache = null
+}
+
 export async function buildHealthContext(): Promise<string> {
+  if (healthContextCache && Date.now() < healthContextCache.expiresAt) {
+    return healthContextCache.value
+  }
+
   const today = format(new Date(), "yyyy-MM-dd");
   const sevenDaysAgo = format(subDays(new Date(), 7), "yyyy-MM-dd");
 
@@ -111,7 +126,9 @@ export async function buildHealthContext(): Promise<string> {
     lines.push("");
   }
 
-  return lines.join("\n");
+  const result = lines.join("\n");
+  healthContextCache = { value: result, expiresAt: Date.now() + TTL_MS }
+  return result
 }
 
 export const SYSTEM_PROMPT = `You are an AI health and fitness coach built into BodySync, a personal health tracking app. You have full access to the user's real health data shown above.
@@ -130,10 +147,15 @@ Guidelines:
 - Keep responses focused — don't pad with generic fitness advice`;
 
 export async function buildExerciseContext(): Promise<string> {
+  if (exerciseContextCache && Date.now() < exerciseContextCache.expiresAt) {
+    return exerciseContextCache.value
+  }
   const exercises = await db.exercises.toArray();
-  return exercises
+  const result = exercises
     .map((e) => `${e.id} | ${e.name} | ${e.muscleGroup}`)
     .join("\n");
+  exerciseContextCache = { value: result, expiresAt: Date.now() + TTL_MS }
+  return result
 }
 
 export const PLAN_SYSTEM_PROMPT = `You are a fitness plan creator for BodySync app.

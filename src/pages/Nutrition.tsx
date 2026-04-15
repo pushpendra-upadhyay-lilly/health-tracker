@@ -17,6 +17,7 @@ import { useAddWater } from '../hooks/useAddWater'
 import { useTodayMeals } from '../hooks/useTodayMeals'
 import { useTodayWater } from '../hooks/useTodayWater'
 import { formatWater, pct, totalCalories, totalMacros, totalWater } from '../utils/calculations'
+import { hapticLight } from '../utils/haptics'
 
 // ── Water presets ─────────────────────────────────────────────────────────────
 const WATER_PRESETS = [
@@ -94,7 +95,7 @@ export default function Nutrition() {
                 <button
                   key={label}
                   className="flex items-center justify-center gap-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-bold py-2 rounded-xl transition-all"
-                  onClick={() => addWater(amount)}
+                  onClick={() => { hapticLight(); addWater(amount) }}
                 >
                   <GlassWater size={11} className="text-blue-400" />
                   +{label}
@@ -116,7 +117,7 @@ export default function Nutrition() {
               />
               <button
                 className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-bold px-3 py-1.5 rounded-xl transition-all"
-                onClick={() => { addWater(parseInt(customWater) || 0); setCustomWater('') }}
+                onClick={() => { hapticLight(); addWater(parseInt(customWater) || 0); setCustomWater('') }}
               >
                 Add
               </button>

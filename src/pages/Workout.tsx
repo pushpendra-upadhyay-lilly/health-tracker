@@ -16,6 +16,7 @@ import type { WorkoutLog, ExerciseLog, SetLog } from '../db/types'
 import { getDayOfWeek, getTodayString, DAY_FULL_LABELS } from '../utils/dateHelpers'
 import { pct } from '../utils/calculations'
 import { playTimerSound } from '../utils/sound'
+import { hapticMedium, hapticSuccess } from '../utils/haptics'
 
 export default function Workout() {
   const navigate = useNavigate()
@@ -153,6 +154,15 @@ export default function Workout() {
     if (updated.completed) updated.completedAt = new Date().toISOString()
 
     await db.workoutLogs.put(updated)
+
+    // Haptic feedback on set completion
+    if (!wasCompleted && set.completed) {
+      if (updated.completed) {
+        hapticSuccess()
+      } else {
+        hapticMedium()
+      }
+    }
 
     // Start rest timer when completing a set (not when un-completing)
     if (!wasCompleted && set.completed) {

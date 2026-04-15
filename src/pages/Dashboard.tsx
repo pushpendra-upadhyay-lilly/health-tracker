@@ -15,6 +15,7 @@ import { formatWater, pct, totalCalories, totalWater } from '../utils/calculatio
 import { getDayOfWeek } from '../utils/dateHelpers'
 import CompactState from '../components/CompactState'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { hapticLight } from '../utils/haptics'
 
 const WATER_PRESETS = [
   { label: '½ glass', amount: 125 },
@@ -167,7 +168,7 @@ export default function Dashboard() {
           {WATER_PRESETS.map(({ label, amount }) => (
             <button
               key={label}
-              onClick={() => addWater(amount)}
+              onClick={() => { hapticLight(); addWater(amount) }}
               className="flex flex-auto flex-col items-center justify-center gap-0.5 bg-blue-500/10 hover:bg-blue-500/20 active:scale-95 text-blue-400 text-[10px] font-bold py-2 rounded-lg transition-all"
             >
               <GlassWater size={12} />
