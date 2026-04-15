@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Download, Upload, Trash2, Bell, ChevronRight, User, ClipboardList, Dumbbell } from 'lucide-react'
+import { Download, Upload, Trash2, Bell, ChevronRight, User, ClipboardList, Dumbbell, Bot, Eye, EyeOff } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/layout/PageHeader'
 import Card from '../components/ui/Card'
@@ -11,6 +11,7 @@ import { db, getSettings, updateSettings } from '../db'
 import { exportData, importData } from '../utils/exportImport'
 import { useNotifications } from '../hooks/useNotifications'
 import { isNative } from '../utils/platform'
+import { getGeminiApiKey, setGeminiApiKey } from '../services/gemini'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -24,6 +25,15 @@ export default function Settings() {
   const [calorieGoal, setCalorieGoal] = useState('')
   const [saving, setSaving] = useState(false)
   const [importStatus, setImportStatus] = useState<string | null>(null)
+  const [geminiKey, setGeminiKey] = useState(() => getGeminiApiKey())
+  const [showKey, setShowKey] = useState(false)
+  const [keySaved, setKeySaved] = useState(false)
+
+  const handleSaveGeminiKey = () => {
+    setGeminiApiKey(geminiKey)
+    setKeySaved(true)
+    setTimeout(() => setKeySaved(false), 2000)
+  }
 
   useEffect(() => {
     if (settings) {
@@ -222,6 +232,35 @@ export default function Settings() {
               </p>
             </Card>
           )}
+        </section>
+
+        {/* AI */}
+        <section>
+          <SectionHeader icon={<Bot size={12} />} label="AI Coach" />
+          <Card border>
+            <p className="text-xs text-[#555555] mb-3 leading-relaxed">
+              Bring your own Gemini API key to use the AI Coach without rate limits. Leave blank to use the shared key.
+            </p>
+            <div className="relative">
+              <input
+                type={showKey ? 'text' : 'password'}
+                value={geminiKey}
+                onChange={e => setGeminiKey(e.target.value)}
+                placeholder="AIza…"
+                className="w-full bg-[#0D0D0D] border border-[#2A2A2A] rounded-xl px-3 py-2.5 pr-10 text-sm text-white placeholder-[#444] focus:outline-none focus:border-[#00FF87]/40"
+              />
+              <button
+                type="button"
+                onClick={() => setShowKey(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#555555]"
+              >
+                {showKey ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+            <Button fullWidth size="sm" className="mt-3" onClick={handleSaveGeminiKey}>
+              {keySaved ? 'Saved!' : 'Save API Key'}
+            </Button>
+          </Card>
         </section>
 
         {/* Data */}

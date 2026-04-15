@@ -6,7 +6,23 @@ export interface ChatMessage {
 const WORKER_URL = import.meta.env.VITE_AI_WORKER_URL as string;
 const APP_SECRET = import.meta.env.VITE_APP_SECRET as string;
 
-// ── Streaming ────────────────────────────────────────────────────────────────
+const LS_KEY = "gemini_api_key";
+export const getGeminiApiKey = () => localStorage.getItem(LS_KEY) ?? "";
+export const setGeminiApiKey = (key: string) => {
+  if (key.trim()) localStorage.setItem(LS_KEY, key.trim());
+  else localStorage.removeItem(LS_KEY);
+};
+
+function buildHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "X-App-Secret": APP_SECRET,
+  };
+  const userKey = getGeminiApiKey();
+  if (userKey) headers["X-Api-Key"] = userKey;
+  return headers;
+}
+
 // Appends ?stream → Worker uses streamGenerateContent?alt=sse.
 // Use for Progress Feedback (live token-by-token updates).
 export async function streamChat(
@@ -21,7 +37,7 @@ export async function streamChat(
 
   const response = await fetch(`${WORKER_URL}?stream`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-App-Secret": APP_SECRET },
+    headers: buildHeaders(),
     body: JSON.stringify({ contents }),
     signal,
   });
@@ -82,7 +98,7 @@ export async function chat(
 
   const response = await fetch(WORKER_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-App-Secret": APP_SECRET },
+    headers: buildHeaders(),
     body: JSON.stringify({ contents }),
     signal,
   });
