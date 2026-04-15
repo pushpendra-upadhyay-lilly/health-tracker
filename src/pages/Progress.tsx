@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { subDays, format, parseISO, eachDayOfInterval } from 'date-fns'
 import PageHeader from '../components/layout/PageHeader'
@@ -6,10 +6,13 @@ import Card from '../components/ui/Card'
 import { useActivePlan } from '../hooks/useActivePlan'
 import { db, getSettings } from '../db'
 import { toDateString } from '../utils/dateHelpers'
-import { totalWater, totalCalories } from '../utils/calculations'
+import { totalWater, totalCalories, formatWater } from '../utils/calculations'
 
 const PlanVsActualChart = lazy(() =>
   import('../components/charts/PlanVsActualChart').then(m => ({ default: m.PlanVsActualChart }))
+)
+const SimpleBarChart = lazy(() =>
+  import('../components/charts/SimpleBarChart').then(m => ({ default: m.SimpleBarChart }))
 )
 
 type Range = '7d' | '14d' | '30d'
@@ -22,9 +25,9 @@ export default function Progress() {
   const days = range === '7d' ? 7 : range === '14d' ? 14 : 30
   const today = new Date()
   const startDate = subDays(today, days - 1)
-
   const dateRange = eachDayOfInterval({ start: startDate, end: today }).map(toDateString)
 
+  // ── Range-scoped queries ──────────────────────────────────────────────────
   const workoutLogs = useLiveQuery(
     () => db.workoutLogs.where('date').between(dateRange[0], dateRange[dateRange.length - 1], true, true).toArray(),
     [dateRange[0], dateRange[dateRange.length - 1]],
@@ -43,45 +46,112 @@ export default function Progress() {
     [],
   )
 
+  // ── All-time completed workout dates for streak ───────────────────────────
+  const allWorkoutDates = useLiveQuery(
+    () => db.workoutLogs.filter(l => l.completed).toArray().then(logs => new Set(logs.map(l => l.date))),
+    [],
+    new Set<string>(),
+  )
+
   const waterGoal = activePlan?.waterTarget ?? settings?.waterGoal ?? 3000
   const calorieGoal = activePlan?.calorieTarget ?? settings?.calorieGoal ?? 2000
+  const weightUnit = settings?.weightUnit ?? 'kg'
 
-  // Build chart data per day
-  const calorieData = dateRange.map((date) => {
-    const meals = mealLogs?.filter((m) => m.date === date) ?? []
-    return {
-      date: format(parseISO(date), 'MMM d'),
-      actual: totalCalories(meals),
-      target: calorieGoal,
+  // ── Summary stats ─────────────────────────────────────────────────────────
+  const workoutStreak = useMemo(() => {
+    if (!allWorkoutDates?.size) return 0
+    const hasToday = allWorkoutDates.has(toDateString(today))
+    let streak = 0
+    for (let i = hasToday ? 0 : 1; i < 366; i++) {
+      if (allWorkoutDates.has(toDateString(subDays(today, i)))) streak++
+      else break
     }
-  })
+    return streak
+  }, [allWorkoutDates])
 
-  const waterData = dateRange.map((date) => {
-    const log = waterLogs?.find((w) => w.date === date)
-    return {
-      date: format(parseISO(date), 'MMM d'),
-      actual: totalWater(log?.entries ?? []),
-      target: waterGoal,
-    }
-  })
+  const totalWorkouts = workoutLogs?.filter(l => l.completed).length ?? 0
+
+  const avgCalories = useMemo(() => {
+    if (!mealLogs?.length) return 0
+    const byDate = new Map<string, number>()
+    mealLogs.forEach(m => byDate.set(m.date, (byDate.get(m.date) ?? 0) + m.calories))
+    const sum = [...byDate.values()].reduce((a, b) => a + b, 0)
+    return byDate.size ? Math.round(sum / byDate.size) : 0
+  }, [mealLogs])
+
+  const avgWater = useMemo(() => {
+    if (!waterLogs?.length) return 0
+    return Math.round(waterLogs.reduce((s, w) => s + totalWater(w.entries), 0) / days)
+  }, [waterLogs, days])
+
+  // ── PlanVsActual chart data ───────────────────────────────────────────────
+  const calorieData = dateRange.map((date) => ({
+    date: format(parseISO(date), 'MMM d'),
+    actual: totalCalories(mealLogs?.filter((m) => m.date === date) ?? []),
+    target: calorieGoal,
+  }))
+
+  const waterData = dateRange.map((date) => ({
+    date: format(parseISO(date), 'MMM d'),
+    actual: totalWater(waterLogs?.find((w) => w.date === date)?.entries ?? []),
+    target: waterGoal,
+  }))
 
   const workoutData = dateRange.map((date) => {
     const log = workoutLogs?.find((w) => w.date === date)
     const totalSets = log?.exercises.flatMap((e) => e.sets).length ?? 0
     const doneSets = log?.exercises.flatMap((e) => e.sets).filter((s) => s.completed).length ?? 0
-    return {
-      date: format(parseISO(date), 'MMM d'),
-      actual: doneSets,
-      target: totalSets || doneSets,
-    }
+    return { date: format(parseISO(date), 'MMM d'), actual: doneSets, target: totalSets || doneSets }
   })
+
+  // ── Weekly workout frequency (14d / 30d) ─────────────────────────────────
+  const weeklyFrequency = useMemo(() => {
+    const numWeeks = Math.ceil(days / 7)
+    return Array.from({ length: numWeeks }, (_, w) => {
+      const weekEnd = subDays(today, (numWeeks - 1 - w) * 7)
+      const weekStart = subDays(weekEnd, 6)
+      const startStr = toDateString(weekStart < startDate ? startDate : weekStart)
+      const endStr = toDateString(weekEnd)
+      const count = workoutLogs?.filter(l => l.date >= startStr && l.date <= endStr && l.completed).length ?? 0
+      return { label: format(weekStart < startDate ? startDate : weekStart, 'MMM d'), value: count }
+    })
+  }, [workoutLogs, days])
+
+  // ── Exercise volume progression ───────────────────────────────────────────
+  const exerciseVolume = useMemo(() => {
+    if (!workoutLogs?.length) return []
+    const byExercise = new Map<string, Array<{ maxWeight: number }>>()
+
+    for (const log of [...workoutLogs].sort((a, b) => a.date.localeCompare(b.date))) {
+      for (const ex of log.exercises) {
+        const completedSets = ex.sets.filter(s => s.completed && (s.actualWeight ?? 0) > 0)
+        if (!completedSets.length) continue
+        const maxWeight = Math.max(...completedSets.map(s => s.actualWeight ?? 0))
+        const arr = byExercise.get(ex.name) ?? []
+        arr.push({ maxWeight })
+        byExercise.set(ex.name, arr)
+      }
+    }
+
+    const progressions: { name: string; first: number; last: number; delta: number; pct: number }[] = []
+    for (const [name, entries] of byExercise) {
+      if (entries.length < 2) continue
+      const first = entries[0].maxWeight
+      const last = entries[entries.length - 1].maxWeight
+      const delta = +(last - first).toFixed(1)
+      const pct = Math.round((delta / first) * 100)
+      progressions.push({ name, first, last, delta, pct })
+    }
+
+    return progressions.sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct)).slice(0, 5)
+  }, [workoutLogs])
 
   return (
     <div className="pb-32">
-      <PageHeader title="Progress" subtitle="Plan vs Actual" back/>
+      <PageHeader title="Progress" subtitle="Your stats at a glance" back />
 
       <div className="px-4 space-y-5">
-        {/* Range selector */}
+        {/* ── Range selector ── */}
         <div className="flex gap-2">
           {(['7d', '14d', '30d'] as Range[]).map((r) => (
             <button
@@ -96,32 +166,98 @@ export default function Progress() {
           ))}
         </div>
 
-        {/* Charts */}
+        {/* ── Summary stats ── */}
+        <div className="grid grid-cols-2 gap-2">
+          <Card border>
+            <p className="text-[10px] font-semibold text-[#555555] uppercase tracking-wider mb-1">🔥 Streak</p>
+            <p className="text-2xl font-black text-white">{workoutStreak}</p>
+            <p className="text-xs text-[#555555]">day{workoutStreak !== 1 ? 's' : ''} in a row</p>
+          </Card>
+          <Card border>
+            <p className="text-[10px] font-semibold text-[#555555] uppercase tracking-wider mb-1">💪 Workouts</p>
+            <p className="text-2xl font-black text-white">{totalWorkouts}</p>
+            <p className="text-xs text-[#555555]">in this period</p>
+          </Card>
+          <Card border>
+            <p className="text-[10px] font-semibold text-[#555555] uppercase tracking-wider mb-1">Avg Calories</p>
+            <p className="text-2xl font-black text-white">{avgCalories || '—'}</p>
+            <p className="text-xs text-[#555555]">kcal / day</p>
+          </Card>
+          <Card border>
+            <p className="text-[10px] font-semibold text-[#555555] uppercase tracking-wider mb-1">💧 Avg Water</p>
+            <p className="text-2xl font-black text-white">{avgWater ? formatWater(avgWater) : '—'}</p>
+            <p className="text-xs text-[#555555]">per day</p>
+          </Card>
+        </div>
+
+        {/* ── Weekly frequency bar chart (14d / 30d only) ── */}
+        {days >= 14 && (
+          <Card border>
+            <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider mb-4">📅 Workout Frequency</p>
+            <Suspense fallback={<div className="h-36 bg-[#2A2A2A] rounded-xl animate-pulse" />}>
+              <SimpleBarChart data={weeklyFrequency} color="#FF6B35" unit=" sessions" goodThreshold={3} />
+            </Suspense>
+            <p className="text-[10px] text-[#444444] mt-1 text-center">per week · orange = 3+ sessions</p>
+          </Card>
+        )}
+
+        {/* ── Plan vs Actual line charts ── */}
         <Suspense fallback={
           <div className="space-y-4">
-            {[0, 1, 2].map(i => (
-              <div key={i} className="h-40 bg-[#2A2A2A] rounded-2xl animate-pulse" />
-            ))}
+            {[0, 1, 2].map(i => <div key={i} className="h-40 bg-[#2A2A2A] rounded-2xl animate-pulse" />)}
           </div>
         }>
-          {/* Calorie chart */}
           <Card border>
-            <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider mb-4">🔥 Calories</p>
+            <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider mb-4">🔥 Calories vs Goal</p>
             <PlanVsActualChart data={calorieData} unit="kcal" />
           </Card>
-
-          {/* Water chart */}
           <Card border>
-            <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider mb-4">💧 Water</p>
+            <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider mb-4">💧 Water vs Goal</p>
             <PlanVsActualChart data={waterData} unit="ml" />
           </Card>
-
-          {/* Workout chart */}
           <Card border>
             <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider mb-4">💪 Workout Sets</p>
             <PlanVsActualChart data={workoutData} unit="sets" />
           </Card>
         </Suspense>
+
+        {/* ── Exercise volume progression ── */}
+        {exerciseVolume.length > 0 && (
+          <>
+            <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider">📈 Exercise Progress</p>
+            <div className="space-y-2">
+              {exerciseVolume.map((ex) => (
+                <Card key={ex.name} border padding="sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-white truncate">{ex.name}</p>
+                      <p className="text-xs text-[#555555]">
+                        {ex.first}{weightUnit} → {ex.last}{weightUnit}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0 ml-4">
+                      <p className={`text-base font-black ${ex.delta >= 0 ? 'text-[#00FF87]' : 'text-[#FF4757]'}`}>
+                        {ex.delta >= 0 ? '+' : ''}{ex.delta}{weightUnit}
+                      </p>
+                      <p className={`text-xs font-semibold ${ex.delta >= 0 ? 'text-[#00FF87]/60' : 'text-[#FF4757]/60'}`}>
+                        {ex.pct >= 0 ? '+' : ''}{ex.pct}%
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-2 h-1 bg-[#2A2A2A] rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${Math.min(Math.abs(ex.pct), 100)}%`,
+                        backgroundColor: ex.delta >= 0 ? '#00FF87' : '#FF4757',
+                      }}
+                    />
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

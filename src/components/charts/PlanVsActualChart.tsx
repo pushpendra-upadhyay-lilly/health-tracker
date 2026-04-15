@@ -1,11 +1,10 @@
 import {
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from 'recharts'
 
@@ -20,21 +19,57 @@ interface PlanVsActualChartProps {
   unit?: string
 }
 
+/** Single SVG group: gray background (= target) + colored overlay (= actual) */
+const OverlayBar = (props: any) => {
+  const { x, y, width, height, payload } = props
+  if (!width || height == null || height < 0) return null
+
+  const { actual = 0, target = 0 } = payload
+  if (target <= 0) return <rect x={x} y={y} width={width} height={Math.max(height, 2)} fill="#2A2A2A" rx={3} ry={3} />
+
+  const fillPct = Math.min(actual / target, 1)
+  const actualH = Math.round(fillPct * height)
+  const isOver = actual > target
+
+  return (
+    <g>
+      {/* Background = target */}
+      <rect x={x} y={y} width={width} height={height} fill="#2A2A2A" rx={3} ry={3} />
+      {/* Foreground = actual — grows from the bottom */}
+      {actual > 0 && (
+        <rect
+          x={x}
+          y={y + height - Math.max(actualH, 3)}
+          width={width}
+          height={Math.max(actualH, 3)}
+          fill={isOver ? '#FF6B35' : '#00FF87'}
+          fillOpacity={0.9}
+          rx={3}
+          ry={3}
+        />
+      )}
+    </g>
+  )
+}
+
+const CustomTooltip = ({ active, payload, label, unit }: any) => {
+  if (!active || !payload?.length) return null
+  const d = payload[0].payload as DataPoint
+  const isOver = d.actual > d.target
+  return (
+    <div style={{ background: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 8, padding: '8px 12px', fontSize: 11 }}>
+      <p style={{ color: '#999', marginBottom: 4 }}>{label}</p>
+      <p style={{ color: isOver ? '#FF6B35' : '#00FF87' }}>Actual: {d.actual} {unit}</p>
+      <p style={{ color: '#555' }}>Target: {d.target} {unit}</p>
+    </div>
+  )
+}
+
 export function PlanVsActualChart({ data, unit = '' }: PlanVsActualChartProps) {
   return (
     <ResponsiveContainer width="100%" height={160}>
-      <AreaChart data={data} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-        <defs>
-          <linearGradient id="gradActual" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#00FF87" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="#00FF87" stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id="gradTarget" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#FF6B35" stopOpacity={0.2} />
-            <stop offset="95%" stopColor="#FF6B35" stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="#2A2A2A" vertical={false} />
+      <BarChart data={data} margin={{ top: 4, right: 4, left: -28, bottom: 0 }} barCategoryGap="30%">
+        <CartesianGrid strokeDasharray="3 3" stroke="#1A1A1A" vertical={false} />
         <XAxis
           dataKey="date"
           tick={{ fill: '#555555', fontSize: 10 }}
@@ -47,16 +82,10 @@ export function PlanVsActualChart({ data, unit = '' }: PlanVsActualChartProps) {
           axisLine={false}
           tickLine={false}
         />
-        <Tooltip
-          contentStyle={{ background: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 8, color: '#fff', fontSize: 11 }}
-          formatter={(v: number, name: string) => [`${v} ${unit}`, name === 'actual' ? 'Actual' : 'Target']}
-        />
-        <Legend
-          formatter={(v) => <span style={{ color: '#A0A0A0', fontSize: 11 }}>{v === 'actual' ? 'Actual' : 'Target'}</span>}
-        />
-        <Area type="monotone" dataKey="target" stroke="#FF6B35" strokeWidth={1.5} strokeDasharray="4 3" fill="url(#gradTarget)" dot={false} />
-        <Area type="monotone" dataKey="actual" stroke="#00FF87" strokeWidth={2} fill="url(#gradActual)" dot={false} activeDot={{ r: 4, fill: '#00FF87' }} />
-      </AreaChart>
+        <Tooltip content={<CustomTooltip unit={unit} />} cursor={false} />
+        {/* Single bar — custom shape handles both background and overlay */}
+        <Bar dataKey="target" maxBarSize={28} shape={<OverlayBar />} isAnimationActive={false} />
+      </BarChart>
     </ResponsiveContainer>
   )
 }

@@ -1,8 +1,9 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import AppShell from './components/layout/AppShell'
 import UpdatePrompt from './components/UpdatePrompt'
+import { ErrorBoundary } from './components/ui/ErrorBoundary'
 import { db } from './db'
 
 // Eagerly loaded — needed before onboarding check resolves
@@ -26,6 +27,12 @@ function PageLoader() {
       <div className="w-8 h-8 border-2 border-[#00FF87] border-t-transparent rounded-full animate-spin" />
     </div>
   )
+}
+
+/** Resets the error boundary automatically when the user navigates to a new page */
+function PageBoundary({ children }: { children: React.ReactNode }) {
+  const location = useLocation()
+  return <ErrorBoundary resetKey={location.pathname}>{children}</ErrorBoundary>
 }
 
 function AppRoutes() {
@@ -59,17 +66,17 @@ function AppRoutes() {
           </>
         ) : (
           <Route element={<AppShell />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/plan" element={<Plan />} />
-            <Route path="/plan/new" element={<PlanBuilder />} />
-            <Route path="/plan/:id/edit" element={<PlanBuilder />} />
-            <Route path="/workout" element={<Workout />} />
-            <Route path="/nutrition" element={<Nutrition />} />
-            <Route path="/body" element={<Body />} />
-            <Route path="/progress" element={<Progress />} />
-            <Route path="/library" element={<Library />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/ai" element={<AICoach />} />
+            <Route path="/" element={<PageBoundary><Dashboard /></PageBoundary>} />
+            <Route path="/plan" element={<PageBoundary><Plan /></PageBoundary>} />
+            <Route path="/plan/new" element={<PageBoundary><PlanBuilder /></PageBoundary>} />
+            <Route path="/plan/:id/edit" element={<PageBoundary><PlanBuilder /></PageBoundary>} />
+            <Route path="/workout" element={<PageBoundary><Workout /></PageBoundary>} />
+            <Route path="/nutrition" element={<PageBoundary><Nutrition /></PageBoundary>} />
+            <Route path="/body" element={<PageBoundary><Body /></PageBoundary>} />
+            <Route path="/progress" element={<PageBoundary><Progress /></PageBoundary>} />
+            <Route path="/library" element={<PageBoundary><Library /></PageBoundary>} />
+            <Route path="/settings" element={<PageBoundary><Settings /></PageBoundary>} />
+            <Route path="/ai" element={<PageBoundary><AICoach /></PageBoundary>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         )}
