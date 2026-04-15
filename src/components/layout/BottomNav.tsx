@@ -11,7 +11,7 @@ const NAV_ITEMS = [
 
 export default function BottomNav() {
   return (
-    <nav className="flex-shrink-0 bg-[#1A1A1A] border-t border-[#2A2A2A] safe-bottom">
+    <nav className="flex-shrink-0 bg-[#1A1A1A] border-t border-[#2A2A2A] safe-bottom inset-shadow-sm inset-shadow-green-500/50">
       <div className="flex items-center justify-around px-2 pt-2 pb-1">
         {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
           <NavLink
