@@ -603,13 +603,6 @@ export default function AICoach() {
                   <p className="text-white/40 text-xs">Describe your goal — I'll build a full weekly plan</p>
                 </div>
               </div>
-
-              {planError && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-xs text-red-400">
-                  {planError}
-                </div>
-              )}
-
               <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-white/10">
                 <textarea
                   rows={3}
@@ -634,6 +627,11 @@ export default function AICoach() {
                   </button>
                 </div>
               </div>
+               {planError && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-xs text-red-400">
+                  {planError}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-2">
                 {PLAN_SUGGESTIONS.map((s) => (
@@ -664,11 +662,6 @@ export default function AICoach() {
                   </div>
                 </div>
               )}
-              {planError && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-xs text-red-400 mb-3">
-                  {planError}
-                </div>
-              )}
               <PlanPreview
                 plan={generatedPlan}
                 loading={planLoading}
@@ -681,6 +674,11 @@ export default function AICoach() {
                 saved={saved}
                 isUpdate={isUpdateMode}
               />
+               {planError && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-xs text-red-400 mt-3">
+                  {planError}
+                </div>
+              )}
             </div>
           )
         )}

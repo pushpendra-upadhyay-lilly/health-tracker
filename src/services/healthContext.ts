@@ -161,7 +161,7 @@ export async function buildExerciseContext(): Promise<string> {
 export const PLAN_SYSTEM_PROMPT = `You are a fitness plan creator for BodySync app.
 Generate a personalized weekly workout plan based on the user's request and fitness data.
 
-Return ONLY a raw JSON object — no markdown, no code blocks, no explanation.
+Return ONLY a raw stringified JSON — no markdown, no code blocks, no explanation, no tabs, no new lines.
 
 Required JSON structure:
 {

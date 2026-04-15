@@ -13,10 +13,21 @@ export const setGeminiApiKey = (key: string) => {
   else localStorage.removeItem(LS_KEY);
 };
 
+const MODEL_INDEX_KEY = "gemini_model_index";
+const getModelIndex = () => localStorage.getItem(MODEL_INDEX_KEY) ?? "0";
+const saveModelIndex = (res: Response) => {
+  const next = res.headers.get("X-Model-Index");
+  console.log(res.headers);
+  if (next !== null) {
+    localStorage.setItem(MODEL_INDEX_KEY, next);
+  }
+};
+
 function buildHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "X-App-Secret": APP_SECRET,
+    "X-Model-Index": getModelIndex(),
   };
   const userKey = getGeminiApiKey();
   if (userKey) headers["X-Api-Key"] = userKey;
@@ -38,11 +49,13 @@ export async function streamChat(
   const response = await fetch(`${WORKER_URL}?stream`, {
     method: "POST",
     headers: buildHeaders(),
-    body: JSON.stringify({ contents }),
+    body: JSON.stringify({ contents, generationConfig: { maxOutputTokens: 8192 } }),
     signal,
   });
 
   if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+
+  saveModelIndex(response);
 
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
@@ -99,11 +112,13 @@ export async function chat(
   const response = await fetch(WORKER_URL, {
     method: "POST",
     headers: buildHeaders(),
-    body: JSON.stringify({ contents }),
+    body: JSON.stringify({ contents, generationConfig: { maxOutputTokens: 8192 } }),
     signal,
   });
 
   const rawText = await response.text();
+
+  saveModelIndex(response);
 
   if (!response.ok) {
     console.error("[chat] error", response.status, rawText.slice(0, 300));
