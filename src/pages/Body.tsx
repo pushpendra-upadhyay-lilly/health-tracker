@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus, Scale, Trash2 } from 'lucide-react'
@@ -8,11 +8,14 @@ import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
 import Input from '../components/ui/Input'
 import EmptyState from '../components/ui/EmptyState'
-import { BodyTrendChart } from '../components/charts/BodyTrendChart'
 import { db, getSettings } from '../db'
 import type { BodyMetric } from '../db/types'
 import { getTodayString, formatDisplay } from '../utils/dateHelpers'
 import { calculateBMI, getBMICategory } from '../utils/calculations'
+
+const BodyTrendChart = lazy(() =>
+  import('../components/charts/BodyTrendChart').then(m => ({ default: m.BodyTrendChart }))
+)
 
 export default function Body() {
   const metrics = useLiveQuery(() => db.bodyMetrics.orderBy('date').reverse().toArray(), [])
@@ -109,10 +112,12 @@ export default function Body() {
 
         {/* Chart */}
         {chartData.length >= 2 && (
-          <Card border>
-            <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider mb-4">Weight Trend</p>
-            <BodyTrendChart data={chartData} goalWeight={settings?.goalWeight ?? null} />
-          </Card>
+          <Suspense fallback={<div className="h-44 bg-[#2A2A2A] rounded-2xl animate-pulse" />}>
+            <Card border>
+              <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider mb-4">Weight Trend</p>
+              <BodyTrendChart data={chartData} goalWeight={settings?.goalWeight ?? null} />
+            </Card>
+          </Suspense>
         )}
 
         {/* History list */}

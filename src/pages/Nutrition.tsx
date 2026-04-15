@@ -1,13 +1,16 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Droplets, Flame, GlassWater, Plus, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { v4 as uuid } from 'uuid'
-import { MacroDonut } from '../components/charts/MacroDonut'
 import LogMealModal, { MEAL_EMOJIS } from '../components/modals/LogMealModal'
 import PageHeader from '../components/layout/PageHeader'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import ProgressRing from '../components/ui/ProgressRing'
+
+const MacroDonut = lazy(() =>
+  import('../components/charts/MacroDonut').then(m => ({ default: m.MacroDonut }))
+)
 import { db, getSettings } from '../db'
 import type { WaterLog } from '../db/types'
 import { useTodayMeals } from '../hooks/useTodayMeals'
@@ -177,7 +180,9 @@ export default function Nutrition() {
 
             <Card border className="flex items-center justify-center">
               {macros.protein + macros.carbs + macros.fat > 0 ? (
-                <MacroDonut protein={macros.protein} carbs={macros.carbs} fat={macros.fat} size={80} />
+                <Suspense fallback={<div className="w-20 h-20 rounded-full bg-[#2A2A2A] animate-pulse" />}>
+                  <MacroDonut protein={macros.protein} carbs={macros.carbs} fat={macros.fat} size={80} />
+                </Suspense>
               ) : (
                 <div className="text-center">
                   <p className="text-xs text-[#666666] mb-1">Macros</p>

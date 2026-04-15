@@ -1,13 +1,16 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { subDays, format, parseISO, eachDayOfInterval } from 'date-fns'
 import PageHeader from '../components/layout/PageHeader'
 import Card from '../components/ui/Card'
-import { PlanVsActualChart } from '../components/charts/PlanVsActualChart'
 import { useActivePlan } from '../hooks/useActivePlan'
 import { db, getSettings } from '../db'
 import { toDateString } from '../utils/dateHelpers'
 import { totalWater, totalCalories } from '../utils/calculations'
+
+const PlanVsActualChart = lazy(() =>
+  import('../components/charts/PlanVsActualChart').then(m => ({ default: m.PlanVsActualChart }))
+)
 
 type Range = '7d' | '14d' | '30d'
 
@@ -93,23 +96,32 @@ export default function Progress() {
           ))}
         </div>
 
-        {/* Calorie chart */}
-        <Card border>
-          <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider mb-4">🔥 Calories</p>
-          <PlanVsActualChart data={calorieData} unit="kcal" />
-        </Card>
+        {/* Charts */}
+        <Suspense fallback={
+          <div className="space-y-4">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="h-40 bg-[#2A2A2A] rounded-2xl animate-pulse" />
+            ))}
+          </div>
+        }>
+          {/* Calorie chart */}
+          <Card border>
+            <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider mb-4">🔥 Calories</p>
+            <PlanVsActualChart data={calorieData} unit="kcal" />
+          </Card>
 
-        {/* Water chart */}
-        <Card border>
-          <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider mb-4">💧 Water</p>
-          <PlanVsActualChart data={waterData} unit="ml" />
-        </Card>
+          {/* Water chart */}
+          <Card border>
+            <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider mb-4">💧 Water</p>
+            <PlanVsActualChart data={waterData} unit="ml" />
+          </Card>
 
-        {/* Workout chart */}
-        <Card border>
-          <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider mb-4">💪 Workout Sets</p>
-          <PlanVsActualChart data={workoutData} unit="sets" />
-        </Card>
+          {/* Workout chart */}
+          <Card border>
+            <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider mb-4">💪 Workout Sets</p>
+            <PlanVsActualChart data={workoutData} unit="sets" />
+          </Card>
+        </Suspense>
       </div>
     </div>
   )
