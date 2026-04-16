@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Bot, Brain, Check, ChevronDown, ChevronUp,
-  Loader2, Send, Sparkles, Square, User, Wand2, X,
+  Loader2, RefreshCw, Send, Sparkles, Square, User, Wand2, X,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -272,7 +272,9 @@ export default function AICoach() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [feedbackInput, setFeedbackInput] = useState("");
   const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackError, setFeedbackError] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const lastUserMsgRef = useRef<string>("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -281,6 +283,9 @@ export default function AICoach() {
 
   async function sendFeedback(text: string) {
     if (!text.trim() || feedbackLoading || !contextReady) return;
+
+    lastUserMsgRef.current = text.trim();
+    setFeedbackError(false);
 
     const userMsg: ChatMessage = { role: "user", content: text.trim() };
     const history: ChatMessage[] =
@@ -315,6 +320,7 @@ export default function AICoach() {
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
         console.error("[Feedback]", err);
+        setFeedbackError(true);
         setMessages((prev) => {
           const updated = [...prev];
           updated[updated.length - 1] = {
@@ -328,6 +334,15 @@ export default function AICoach() {
       setFeedbackLoading(false);
       abortRef.current = null;
     }
+  }
+
+  function retryFeedback() {
+    if (!lastUserMsgRef.current) return;
+    const text = lastUserMsgRef.current;
+    // Remove the last user + error model pair before retrying
+    setMessages((prev) => prev.slice(0, -2));
+    setFeedbackError(false);
+    sendFeedback(text);
   }
 
   // ── Plan state ──────────────────────────────────────────────────────────────
@@ -585,6 +600,21 @@ export default function AICoach() {
                   </div>
                 </div>
               ))}
+              {feedbackError && (
+                <div className="flex justify-start pl-10">
+                  <button
+                    onClick={retryFeedback}
+                    disabled={feedbackLoading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl
+                               bg-white/5 border border-white/10 text-white/50 text-xs
+                               hover:bg-white/10 hover:text-white/80 active:scale-95
+                               transition-all disabled:opacity-30"
+                  >
+                    <RefreshCw size={11} />
+                    Retry
+                  </button>
+                </div>
+              )}
               <div ref={bottomRef} />
             </div>
           )
@@ -629,7 +659,16 @@ export default function AICoach() {
               </div>
                {planError && (
                 <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-xs text-red-400">
-                  {planError}
+                  <p>{planError}</p>
+                  <button
+                    onClick={() => generatePlan(planQuery)}
+                    disabled={planLoading || !planQuery.trim()}
+                    className="flex items-center gap-1.5 mt-2 text-red-400/70 hover:text-red-400
+                               transition-colors disabled:opacity-30"
+                  >
+                    <RefreshCw size={11} />
+                    Retry
+                  </button>
                 </div>
               )}
 
@@ -676,7 +715,16 @@ export default function AICoach() {
               />
                {planError && (
                 <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-xs text-red-400 mt-3">
-                  {planError}
+                  <p>{planError}</p>
+                  <button
+                    onClick={modifyInput.trim() ? modifyPlan : () => generatePlan(planQuery)}
+                    disabled={planLoading}
+                    className="flex items-center gap-1.5 mt-2 text-red-400/70 hover:text-red-400
+                               transition-colors disabled:opacity-30"
+                  >
+                    <RefreshCw size={11} />
+                    Retry
+                  </button>
                 </div>
               )}
             </div>
