@@ -144,7 +144,9 @@ Guidelines:
 - Reference specific numbers from the user's data when relevant
 - When generating plans, use a clear Day 1 / Day 2 format
 - Be encouraging but honest about areas that need improvement
-- Keep responses focused — don't pad with generic fitness advice`;
+- Keep responses focused — don't pad with generic fitness advice
+- Keep response less than 8192 characters to fit within token limits
+`;
 
 export async function buildExerciseContext(): Promise<string> {
   if (exerciseContextCache && Date.now() < exerciseContextCache.expiresAt) {
