@@ -1,3 +1,6 @@
+import { Capacitor } from '@capacitor/core'
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem'
+import { Share } from '@capacitor/share'
 import { db } from '../db'
 import type { Plan, WorkoutLog, WaterLog, MealLog, BodyMetric, Exercise, UserSettings, CustomFood } from '../db/types'
 
@@ -12,6 +15,27 @@ interface ExportData {
   bodyMetrics: BodyMetric[]
   exercises: Exercise[]
   customFoods: CustomFood[]
+}
+
+async function shareOrDownload(json: string, filename: string): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    await Filesystem.writeFile({
+      path: filename,
+      data: json,
+      directory: Directory.Cache,
+      encoding: Encoding.UTF8,
+    })
+    const { uri } = await Filesystem.getUri({ path: filename, directory: Directory.Cache })
+    await Share.share({ title: filename, url: uri })
+  } else {
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 }
 
 export async function exportData(): Promise<void> {
@@ -40,13 +64,9 @@ export async function exportData(): Promise<void> {
     customFoods,
   }
 
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `bodysync-backup-${new Date().toISOString().split('T')[0]}.json`
-  a.click()
-  URL.revokeObjectURL(url)
+  const json = JSON.stringify(payload, null, 2)
+  const filename = `bodysync-backup-${new Date().toISOString().split('T')[0]}.json`
+  await shareOrDownload(json, filename)
 }
 
 export async function importData(file: File): Promise<{ success: boolean; error?: string }> {
@@ -79,13 +99,9 @@ export async function exportPlan(planId: string): Promise<void> {
   const plan = await db.plans.get(planId)
   if (!plan) throw new Error('Plan not found')
 
-  const blob = new Blob([JSON.stringify(plan, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `plan-${plan.name.replace(/\s+/g, '-').toLowerCase()}.json`
-  a.click()
-  URL.revokeObjectURL(url)
+  const json = JSON.stringify(plan, null, 2)
+  const filename = `plan-${plan.name.replace(/\s+/g, '-').toLowerCase()}.json`
+  await shareOrDownload(json, filename)
 }
 
 export async function importPlan(file: File): Promise<{ success: boolean; error?: string }> {
