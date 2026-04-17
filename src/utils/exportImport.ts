@@ -26,7 +26,7 @@ async function shareOrDownload(json: string, filename: string): Promise<void> {
       encoding: Encoding.UTF8,
     })
     const { uri } = await Filesystem.getUri({ path: filename, directory: Directory.Cache })
-    await Share.share({ title: filename, url: uri })
+    await Share.share({ title: filename, files: [uri] })
   } else {
     const blob = new Blob([json], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
