@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Download, Upload, Trash2, Bell, ChevronRight, User, ClipboardList, Dumbbell, Bot, Eye, EyeOff } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { Dialog } from '@capacitor/dialog'
 import PageHeader from '../components/layout/PageHeader'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
@@ -25,15 +26,19 @@ export default function Settings() {
   const [calorieGoal, setCalorieGoal] = useState('')
   const [saving, setSaving] = useState(false)
   const [importStatus, setImportStatus] = useState<string | null>(null)
-  const [geminiKey, setGeminiKey] = useState(() => getGeminiApiKey())
+  const [geminiKey, setGeminiKey] = useState('')
   const [showKey, setShowKey] = useState(false)
   const [keySaved, setKeySaved] = useState(false)
 
-  const handleSaveGeminiKey = () => {
-    setGeminiApiKey(geminiKey)
+  const handleSaveGeminiKey = async () => {
+    await setGeminiApiKey(geminiKey)
     setKeySaved(true)
     setTimeout(() => setKeySaved(false), 2000)
   }
+
+  useEffect(() => {
+    getGeminiApiKey().then(setGeminiKey)
+  }, [])
 
   useEffect(() => {
     if (settings) {
@@ -114,10 +119,13 @@ export default function Settings() {
   }
 
   const handleClearData = async () => {
-    const confirmed = window.confirm(
-      'Delete all workout logs, water logs, meal logs, and body metrics? Plans and settings will be kept.'
-    )
-    if (!confirmed) return
+    const { value } = await Dialog.confirm({
+      title: 'Clear Activity Logs',
+      message: 'Delete all workout logs, water logs, meal logs, and body metrics? Plans and settings will be kept.',
+      okButtonTitle: 'Delete',
+      cancelButtonTitle: 'Cancel',
+    })
+    if (!value) return
     await Promise.all([
       db.workoutLogs.clear(),
       db.waterLogs.clear(),
@@ -127,10 +135,13 @@ export default function Settings() {
   }
 
   const handleResetAll = async () => {
-    const confirmed = window.confirm(
-      'Delete ALL data including plans and settings? This cannot be undone.'
-    )
-    if (!confirmed) return
+    const { value } = await Dialog.confirm({
+      title: 'Reset All Data',
+      message: 'Delete ALL data including plans and settings? This cannot be undone.',
+      okButtonTitle: 'Reset',
+      cancelButtonTitle: 'Cancel',
+    })
+    if (!value) return
     await Promise.all([
       db.plans.clear(),
       db.workoutLogs.clear(),

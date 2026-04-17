@@ -6,11 +6,16 @@ export interface ChatMessage {
 const WORKER_URL = import.meta.env.VITE_AI_WORKER_URL as string;
 const APP_SECRET = import.meta.env.VITE_APP_SECRET as string;
 
-const LS_KEY = "gemini_api_key";
-export const getGeminiApiKey = () => localStorage.getItem(LS_KEY) ?? "";
-export const setGeminiApiKey = (key: string) => {
-  if (key.trim()) localStorage.setItem(LS_KEY, key.trim());
-  else localStorage.removeItem(LS_KEY);
+import { Preferences } from "@capacitor/preferences";
+
+const PREF_KEY = "gemini_api_key";
+export const getGeminiApiKey = async (): Promise<string> => {
+  const { value } = await Preferences.get({ key: PREF_KEY });
+  return value ?? "";
+};
+export const setGeminiApiKey = async (key: string): Promise<void> => {
+  if (key.trim()) await Preferences.set({ key: PREF_KEY, value: key.trim() });
+  else await Preferences.remove({ key: PREF_KEY });
 };
 
 const MODEL_INDEX_KEY = "gemini_model_index";
@@ -23,13 +28,13 @@ const saveModelIndex = (res: Response) => {
   }
 };
 
-function buildHeaders(): Record<string, string> {
+async function buildHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "X-App-Secret": APP_SECRET,
     "X-Model-Index": getModelIndex(),
   };
-  const userKey = getGeminiApiKey();
+  const userKey = await getGeminiApiKey();
   if (userKey) headers["X-Api-Key"] = userKey;
   return headers;
 }
@@ -48,7 +53,7 @@ export async function streamChat(
 
   const response = await fetch(`${WORKER_URL}?stream`, {
     method: "POST",
-    headers: buildHeaders(),
+    headers: await buildHeaders(),
     body: JSON.stringify({ contents, generationConfig: { maxOutputTokens: 8192 } }),
     signal,
   });
@@ -111,7 +116,7 @@ export async function chat(
 
   const response = await fetch(WORKER_URL, {
     method: "POST",
-    headers: buildHeaders(),
+    headers: await buildHeaders(),
     body: JSON.stringify({ contents, generationConfig: { maxOutputTokens: 8192 } }),
     signal,
   });
