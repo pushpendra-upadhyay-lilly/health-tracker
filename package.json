@@ -9,7 +9,10 @@
     "preview": "vite preview --host",
     "cap:build": "CAPACITOR=true tsc -b && CAPACITOR=true vite build && npx cap sync",
     "cap:ios": "npx cap open ios",
-    "cap:android": "npx cap open android"
+    "cap:android": "npx cap open android",
+    "android:build": "npm run cap:build && cd android && ./gradlew assembleRelease",
+    "android:aab": "npm run cap:build && cd android && ./gradlew bundleRelease",
+    "ios:build": "npm run cap:build && cd ios && xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.0",
@@ -21,7 +24,6 @@
     "@capacitor/local-notifications": "^8.0.2",
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/share": "^8.0.1",
-    "capacitor-health-connect": "^0.7.0",
     "date-fns": "^4.1.0",
     "dexie": "^4.0.11",
     "dexie-react-hooks": "^1.1.7",

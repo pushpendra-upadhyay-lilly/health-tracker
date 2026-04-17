@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Download, Upload, Trash2, Bell, ChevronRight, User, ClipboardList, Dumbbell, Bot, Eye, EyeOff, Heart } from 'lucide-react'
+import { Download, Upload, Trash2, Bell, ChevronRight, User, ClipboardList, Dumbbell, Bot, Eye, EyeOff } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Dialog } from '@capacitor/dialog'
 import PageHeader from '../components/layout/PageHeader'
@@ -13,14 +13,11 @@ import { exportData, importData } from '../utils/exportImport'
 import { useNotifications } from '../hooks/useNotifications'
 import { isNative } from '../utils/platform'
 import { getGeminiApiKey, setGeminiApiKey } from '../services/gemini'
-import { useHealthConnect } from '../hooks/useHealthConnect'
 
 export default function Settings() {
   const navigate = useNavigate()
   const settings = useLiveQuery(() => getSettings())
   const { requestPermission, isSupported, isGranted, scheduleWorkoutReminder, cancelWorkoutReminder, startWaterReminders, stopWaterReminders } = useNotifications()
-
-  const { availability, isConnected, isLoading, connect, disconnect } = useHealthConnect()
 
   const [name, setName] = useState('')
   const [height, setHeight] = useState('')
@@ -274,48 +271,6 @@ export default function Settings() {
             <Button fullWidth size="sm" className="mt-3" onClick={handleSaveGeminiKey}>
               {keySaved ? 'Saved!' : 'Save API Key'}
             </Button>
-          </Card>
-        </section>
-
-        {/* Health Apps */}
-        <section>
-          <SectionHeader icon={<Heart size={12} />} label="Health Apps" />
-          <Card border>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#0D0D0D] border border-[#2A2A2A] flex items-center justify-center flex-shrink-0">
-                <Heart size={18} className="text-[#FF4757]" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white">Health Connect</p>
-                <p className="text-xs text-[#555555]">
-                  {availability === 'loading' && 'Checking…'}
-                  {availability === 'NotSupported' && 'Not supported on this device'}
-                  {availability === 'NotInstalled' && 'App not installed'}
-                  {availability === 'Available' && (isConnected ? 'Steps, calories, heart rate, weight' : 'Connect to sync health data')}
-                </p>
-              </div>
-              {availability === 'Available' && (
-                isConnected ? (
-                  <button
-                    onClick={disconnect}
-                    className="text-xs text-[#555555] border border-[#2A2A2A] rounded-lg px-3 py-1.5 flex-shrink-0"
-                  >
-                    Disconnect
-                  </button>
-                ) : (
-                  <button
-                    onClick={connect}
-                    disabled={isLoading}
-                    className="text-xs font-semibold text-black bg-[#00FF87] rounded-lg px-3 py-1.5 flex-shrink-0 disabled:opacity-50"
-                  >
-                    {isLoading ? 'Connecting…' : 'Connect'}
-                  </button>
-                )
-              )}
-              {availability === 'NotInstalled' && (
-                <span className="text-xs text-[#555555] flex-shrink-0">Not installed</span>
-              )}
-            </div>
           </Card>
         </section>
 
