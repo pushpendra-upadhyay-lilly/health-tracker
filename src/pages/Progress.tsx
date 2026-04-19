@@ -185,13 +185,21 @@ export default function Progress() {
     })
   }, [workoutLogs, days])
 
-  // ── Exercise volume progression ───────────────────────────────────────────
+  // ── Exercise volume progression (active plan exercises only) ─────────────
   const exerciseVolume = useMemo(() => {
-    if (!workoutLogs?.length) return []
+    if (!workoutLogs?.length || !activePlan) return []
+
+    const planExerciseIds = new Set<string>()
+    activePlan.weekTemplate.forEach(day =>
+      day.exercises.forEach(ex => planExerciseIds.add(ex.exerciseId))
+    )
+    if (!planExerciseIds.size) return []
+
     const byExercise = new Map<string, Array<{ maxWeight: number }>>()
 
     for (const log of [...workoutLogs].sort((a, b) => a.date.localeCompare(b.date))) {
       for (const ex of log.exercises) {
+        if (!planExerciseIds.has(ex.exerciseId)) continue
         const completedSets = ex.sets.filter(s => s.completed && (s.actualWeight ?? 0) > 0)
         if (!completedSets.length) continue
         const maxWeight = Math.max(...completedSets.map(s => s.actualWeight ?? 0))
@@ -212,7 +220,7 @@ export default function Progress() {
     }
 
     return progressions.sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct)).slice(0, 5)
-  }, [workoutLogs])
+  }, [workoutLogs, activePlan])
 
   return (
     <div className="pb-32">
