@@ -69,8 +69,8 @@ function WaterBottle({ percentage }: { percentage: number }) {
         : `M 0 ${surfaceY} L ${W} ${surfaceY} L ${W} ${fillBottom} L 0 ${fillBottom} Z`)
     : null
 
-  const fillColor = '#0a61d4'
-  const glowOpacity = 0.15
+  const fillColor = '#1044c7'
+  const glowOpacity = (percentage * 0.01)/2;
 
   return (
     <div className="relative flex items-center justify-center" style={{ width: 80, height: 80 }}>
@@ -78,35 +78,39 @@ function WaterBottle({ percentage }: { percentage: number }) {
         className="absolute inset-0 rounded-full blur-xl transition-all duration-700 pointer-events-none"
         style={{ background: `rgba(96,165,250,${glowOpacity})` }}
       />
-      <svg viewBox="0 0 512 512" width="150" height="250" style={{ overflow: 'visible' }}>
+      <svg viewBox="0 0 512 512" width="130" height="240" style={{ overflow: 'visible' }}>
         <defs>
           {/* Rectangular inner body of this bottle SVG */}
           <clipPath id="water-bottle-clip">
-            <rect x="144" y="128" width="160" height="352" />
+            <rect x="152" y="128" width="144" height="352" />
           </clipPath>
         </defs>
 
-        {/* Bottle base — renders first so animated fill layers on top */}
-        <g fill="#60a5fa" opacity={0.9}>
-          <path d="M400,104c0-44.113-35.891-80-80-80h-40v-8c0-8.836-7.164-16-16-16h-80
-            c-8.836,0-16,7.164-16,16v48c0,8.836,7.164,16,16,16h8v16h-64c-8.836,0-16,7.164-16,16v81.578
-            c0,14.398,7.148,27.758,19.133,35.738c3.047,2.031,4.867,5.434,4.867,9.105v35.156
-            c0,3.672-1.82,7.074-4.867,9.105c-11.984,7.98-19.133,21.34-19.133,35.738V496
-            c0,8.836,7.164,16,16,16h192c8.836,0,16-7.164,16-16V318.422
-            c0-14.398-7.148-27.758-19.133-35.738c-3.047-2.031-4.867-5.434-4.867-9.105v-35.156
-            c0-3.672,1.82-7.074,4.867-9.105c11.984-7.98,19.133-21.34,19.133-35.738v-11.19
-            C372.469,174.955,400,142.634,400,104z
-            M200,32h48v16h-48V32z
-            M336,149.2V112c0-8.836-7.164-16-16-16h-64V80h8c8.836,0,16-7.164,16-16v-8h40
-            c26.469,0,48,21.531,48,48C368,124.852,354.613,142.589,336,149.2z"/>
-        </g>
-
-        {/* Animated water fill on top of base, clipped to inner body */}
+        {/* Animated water fill — rendered first, behind the hollow bottle */}
         {waterPath && (
           <g clipPath="url(#water-bottle-clip)">
             <path d={waterPath} fill={fillColor} opacity={1} />
           </g>
         )}
+
+        {/* Hollow bottle: evenodd cuts out the inner rect, leaving only the walls visible */}
+        <g fill="#60a5fa" opacity={0.9}>
+          <path
+            fillRule="evenodd"
+            d="M400,104c0-44.113-35.891-80-80-80h-40v-8c0-8.836-7.164-16-16-16h-80
+              c-8.836,0-16,7.164-16,16v48c0,8.836,7.164,16,16,16h8v16h-64c-8.836,0-16,7.164-16,16v81.578
+              c0,14.398,7.148,27.758,19.133,35.738c3.047,2.031,4.867,5.434,4.867,9.105v35.156
+              c0,3.672-1.82,7.074-4.867,9.105c-11.984,7.98-19.133,21.34-19.133,35.738V496
+              c0,8.836,7.164,16,16,16h192c8.836,0,16-7.164,16-16V318.422
+              c0-14.398-7.148-27.758-19.133-35.738c-3.047-2.031-4.867-5.434-4.867-9.105v-35.156
+              c0-3.672,1.82-7.074,4.867-9.105c11.984-7.98,19.133-21.34,19.133-35.738v-11.19
+              C372.469,174.955,400,142.634,400,104z
+              M200,32h48v16h-48V32z
+              M336,149.2V112c0-8.836-7.164-16-16-16h-64V80h8c8.836,0,16-7.164,16-16v-8h40
+              c26.469,0,48,21.531,48,48C368,124.852,354.613,142.589,336,149.2z
+              M152,128 L296,128 L296,480 L152,480 Z"
+          />
+        </g>
       </svg>
     </div>
   )
