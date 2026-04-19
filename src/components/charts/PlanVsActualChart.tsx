@@ -44,7 +44,7 @@ const OverlayBar = (props: any) => {
           y={y + height - Math.max(actualH, 3)}
           width={width}
           height={Math.max(actualH, 3)}
-          fill={isOver ? '#FF6B35' : '#00FF87'}
+          fill={isOver ? '#f71010' : '#00FF87'}
           fillOpacity={0.9}
           rx={3}
           ry={3}

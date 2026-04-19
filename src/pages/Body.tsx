@@ -1,17 +1,18 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Plus, Scale, Trash2 } from 'lucide-react'
+import { Plus, Scale, Trash2, Pencil } from 'lucide-react'
 import PageHeader from '../components/layout/PageHeader'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
 import Input from '../components/ui/Input'
 import EmptyState from '../components/ui/EmptyState'
+import Tooltip from '../components/ui/Tooltip'
 import { db, getSettings } from '../db'
-import type { BodyMetric } from '../db/types'
+import { useActivePlan } from '../hooks/useActivePlan'
 import { getTodayString, formatDisplay } from '../utils/dateHelpers'
-import { calculateBMI, getBMICategory } from '../utils/calculations'
+import { calculateBMI, getBMICategory,getBodyFatCategory, navyBodyFatFromForm } from '../utils/bodyMetrics'
 
 const BodyTrendChart = lazy(() =>
   import('../components/charts/BodyTrendChart').then(m => ({ default: m.BodyTrendChart }))
@@ -20,29 +21,88 @@ const BodyTrendChart = lazy(() =>
 export default function Body() {
   const metrics = useLiveQuery(() => db.bodyMetrics.orderBy('date').reverse().toArray(), [])
   const settings = useLiveQuery(() => getSettings())
+  const activePlan = useActivePlan()
   const [showModal, setShowModal] = useState(false)
-  const [form, setForm] = useState({ weight: '', height: '', bodyFat: '', date: getTodayString() })
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [form, setForm] = useState({ weight: '', height: '', bodyFat: '', waist: '', neck: '', hip: '', date: getTodayString() })
 
-  const latest = metrics?.[0]
+  // Merge all same-date entries so duplicates (e.g. from Settings auto-log) don't hide data
+  const latest = useMemo(() => {
+    if (!metrics?.length) return null
+    const mostRecentDate = metrics[0].date
+    return metrics
+      .filter(m => m.date === mostRecentDate)
+      .reduce((acc, m) => ({
+        ...acc,
+        weight: m.weight ?? acc.weight,
+        height: m.height ?? acc.height,
+        bmi: m.bmi ?? acc.bmi,
+        bodyFat: m.bodyFat ?? acc.bodyFat,
+      }))
+  }, [metrics])
+
   const bmi = latest?.weight && latest?.height ? calculateBMI(latest.weight, latest.height) : null
   const bmiInfo = bmi ? getBMICategory(bmi) : null
+  const bodyFatInfo = latest?.bodyFat && settings?.gender ? getBodyFatCategory(latest.bodyFat, settings.gender) : null
+
+  const gender = settings?.gender ?? 'male'
+  const effectiveHeight = form.height ? parseFloat(form.height) : (settings?.height ?? 0)
+  const navyBodyFat = navyBodyFatFromForm(gender, effectiveHeight, form.waist, form.neck, form.hip)
+
+  const resetForm = () => {
+    setForm({ weight: '', height: '', bodyFat: '', waist: '', neck: '', hip: '', date: getTodayString() })
+    setEditingId(null)
+    setShowModal(false)
+  }
+
+  const handleEdit = (m: { id: string; date: string; weight: number | null; height: number | null; bodyFat: number | null }) => {
+    setForm({
+      weight: m.weight ? String(m.weight) : '',
+      height: m.height ? String(m.height) : '',
+      bodyFat: m.bodyFat ? String(m.bodyFat) : '',
+      waist: '', neck: '', hip: '',
+      date: m.date,
+    })
+    setEditingId(m.id)
+    setShowModal(true)
+  }
 
   const handleAdd = async () => {
     const height = form.height ? parseFloat(form.height) : settings?.height ?? null
     const weight = form.weight ? parseFloat(form.weight) : null
     const bmiCalc = weight && height ? calculateBMI(weight, height) : null
+    const bodyFat = form.bodyFat ? parseFloat(form.bodyFat) : navyBodyFat
 
-    const metric: BodyMetric = {
-      id: uuid(),
-      date: form.date,
-      weight,
-      height,
-      bodyFat: form.bodyFat ? parseFloat(form.bodyFat) : null,
-      bmi: bmiCalc,
+    if (editingId) {
+      await db.bodyMetrics.update(editingId, {
+        date: form.date,
+        ...(weight !== null && { weight, bmi: bmiCalc }),
+        ...(height !== null && { height }),
+        ...(bodyFat !== null && { bodyFat }),
+      })
+    } else {
+      // Collapse all existing entries for this date into one canonical entry
+      const existing = await db.bodyMetrics.where('date').equals(form.date).toArray()
+      if (existing.length > 0) {
+        const base = existing.reduce((acc, m) => ({
+          ...acc,
+          weight: m.weight ?? acc.weight,
+          height: m.height ?? acc.height,
+          bmi: m.bmi ?? acc.bmi,
+          bodyFat: m.bodyFat ?? acc.bodyFat,
+        }))
+        const ids = existing.map(e => e.id).filter(id => id !== base.id)
+        if (ids.length) await db.bodyMetrics.bulkDelete(ids)
+        await db.bodyMetrics.update(base.id, {
+          ...(weight !== null && { weight, bmi: bmiCalc }),
+          ...(height !== null && { height }),
+          ...(bodyFat !== null && { bodyFat }),
+        })
+      } else {
+        await db.bodyMetrics.put({ id: uuid(), date: form.date, weight, height, bodyFat, bmi: bmiCalc })
+      }
     }
-    await db.bodyMetrics.put(metric)
-    setForm({ weight: '', height: '', bodyFat: '', date: getTodayString() })
-    setShowModal(false)
+    resetForm()
   }
 
   const handleDelete = async (id: string) => {
@@ -63,7 +123,7 @@ export default function Body() {
         title="Body Metrics"
         subtitle="Weight & composition tracking"
         right={
-          <Button size="sm" icon={<Plus size={14} />} onClick={() => setShowModal(true)}>
+          <Button size="sm" icon={<Plus size={14} />} onClick={() => { resetForm(); setShowModal(true) }}>
             Log
           </Button>
         }
@@ -75,8 +135,10 @@ export default function Body() {
           <div className="grid grid-cols-3 gap-3">
             <Card border>
               <p className="text-xs text-[#666666] mb-1">Weight</p>
-              <p className="text-xl font-black text-white">{latest.weight ?? '—'}</p>
-              <p className="text-xs text-[#555555]">kg</p>
+              <p className="text-xl font-black text-white">{latest.weight ?? '—'}
+                <span className="text-xs ml-1 text-[#555555]">kg</span>
+              </p>
+              
               {settings?.currentWeight && latest.weight && (
                 <p className="text-[10px] text-[#00FF87] mt-1">
                   {(latest.weight - settings.currentWeight).toFixed(1)} to goal
@@ -84,7 +146,16 @@ export default function Body() {
               )}
             </Card>
             <Card border>
-              <p className="text-xs text-[#666666] mb-1">BMI</p>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs text-[#666666]">BMI</p>
+                <Tooltip content={((<>
+                  <strong>weight (kg) ÷ height (m)²</strong>
+                  <br /><br />
+                  &lt; 18.5 - <b>Underweight</b><br />
+                  18.5 – 24.9 - <b>Normal</b><br />
+                  25 – 29.9 - <b>Overweight</b><br />
+                  &gt; 30 - <b>Obese</b></>))} />
+              </div>
               <p className="text-xl font-black text-white">{bmi ?? '—'}</p>
               {bmiInfo && (
                 <p className="text-xs font-semibold mt-0.5" style={{ color: bmiInfo.color }}>
@@ -93,9 +164,25 @@ export default function Body() {
               )}
             </Card>
             <Card border>
-              <p className="text-xs text-[#666666] mb-1">Body Fat</p>
-              <p className="text-xl font-black text-white">{latest.bodyFat ?? '—'}</p>
-              {latest.bodyFat && <p className="text-xs text-[#555555]">%</p>}
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs text-[#666666]">Body Fat</p>
+                <Tooltip
+                content={(<>
+                  <strong>US Navy Method</strong><br /><br />
+                  Men: 495 ÷ (1.0324 − 0.19077×log(waist−neck) + 0.15456×log(height)) − 450<br /><br />
+                  Women: same formula with hip added to waist.<br /><br />
+                  Healthy: <br/>Men 10–20% · Women 20–30%</>
+                )}
+                />
+              </div>
+               <p className="text-xl font-black text-white">{latest.bodyFat ?? '—'}
+                <span className="text-xs ml-1 text-[#555555]">%</span>
+              </p>
+              {bodyFatInfo && (
+                <p className="text-xs font-semibold mt-0.5" style={{ color: bodyFatInfo.color }}>
+                  {bodyFatInfo.label}
+                </p>
+              )}
             </Card>
           </div>
         ) : (
@@ -116,7 +203,7 @@ export default function Body() {
           <Suspense fallback={<div className="h-44 bg-[#2A2A2A] rounded-2xl animate-pulse" />}>
             <Card border>
               <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider mb-4">Weight Trend</p>
-              <BodyTrendChart data={chartData} goalWeight={settings?.currentWeight ?? null} />
+              <BodyTrendChart data={chartData} goalWeight={activePlan?.weightGoal ?? null} />
             </Card>
           </Suspense>
         )}
@@ -139,9 +226,14 @@ export default function Body() {
                         ].filter(Boolean).join(' · ')}
                       </p>
                     </div>
-                    <button className="text-[#FF4757]/50 hover:text-[#FF4757] transition-colors" onClick={() => handleDelete(m.id)}>
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button className="text-[#555555] hover:text-white transition-colors" onClick={() => handleEdit(m)}>
+                        <Pencil size={13} />
+                      </button>
+                      <button className="text-[#FF4757]/50 hover:text-[#FF4757] transition-colors" onClick={() => handleDelete(m.id)}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 </Card>
               ))}
@@ -150,7 +242,7 @@ export default function Body() {
         )}
       </div>
 
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Log Body Metrics">
+      <Modal isOpen={showModal} onClose={resetForm} title={editingId ? 'Edit Entry' : 'Log Body Metrics'}>
         <div className="space-y-4">
           <Input
             label="Date"
@@ -176,13 +268,26 @@ export default function Body() {
             onChange={(e) => setForm((f) => ({ ...f, height: e.target.value }))}
           />
           <Input
-            label="Body Fat %"
+            label="Body Fat % (manual override)"
             type="number"
             suffix="%"
             placeholder="15.0"
             value={form.bodyFat}
             onChange={(e) => setForm((f) => ({ ...f, bodyFat: e.target.value }))}
           />
+          <div className="bg-[#0D0D0D] rounded-xl p-3 space-y-3">
+            <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider">Navy Method (auto-calculate body fat)</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Waist" type="number" suffix="cm" placeholder="80" value={form.waist} onChange={(e) => setForm(f => ({ ...f, waist: e.target.value }))} />
+              <Input label="Neck" type="number" suffix="cm" placeholder="38" value={form.neck} onChange={(e) => setForm(f => ({ ...f, neck: e.target.value }))} />
+            </div>
+            {gender === 'female' && (
+              <Input label="Hip" type="number" suffix="cm" placeholder="95" value={form.hip} onChange={(e) => setForm(f => ({ ...f, hip: e.target.value }))} />
+            )}
+            {navyBodyFat !== null && !form.bodyFat && (
+              <p className="text-sm font-bold text-[#00FF87]">Estimated Body Fat: {navyBodyFat}%</p>
+            )}
+          </div>
           {form.weight && (form.height || settings?.height) && (
             <div className="bg-[#0D0D0D] rounded-xl p-3">
               <p className="text-xs text-[#555555] mb-1">Calculated BMI</p>

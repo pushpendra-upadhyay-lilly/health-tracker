@@ -1,16 +1,4 @@
-/** Calculate BMI from weight (kg) and height (cm) */
-export function calculateBMI(weightKg: number, heightCm: number): number {
-  const heightM = heightCm / 100
-  return parseFloat((weightKg / (heightM * heightM)).toFixed(1))
-}
-
-/** Get BMI category label */
-export function getBMICategory(bmi: number): { label: string; color: string } {
-  if (bmi < 18.5) return { label: 'Underweight', color: '#FF6B35' }
-  if (bmi < 25) return { label: 'Normal', color: '#00FF87' }
-  if (bmi < 30) return { label: 'Overweight', color: '#FF6B35' }
-  return { label: 'Obese', color: '#FF4757' }
-}
+export { calculateBMI, getBMICategory, calculateNavyBodyFat } from './bodyMetrics'
 
 /** Sum calories across meal logs */
 export function totalCalories(meals: { calories: number }[]): number {

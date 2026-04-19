@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Activity, ChevronRight, Plus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { AIQuickActions } from '../components/AIQuickActions'
+import BodyMetricsSection from '../components/dashboard/BodyMetricsSection'
 import FoodSection from '../components/dashboard/FoodSection'
 import WaterSection from '../components/dashboard/WaterSection'
 import Card from '../components/ui/Card'
@@ -88,6 +89,9 @@ export default function Dashboard() {
           </div>
         </Card>
       )}
+
+      {/* Body Metrics Summary */}
+      <BodyMetricsSection settings={settings} />
 
       {/* Water Section */}
       <WaterSection />

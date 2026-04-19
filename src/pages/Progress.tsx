@@ -115,74 +115,6 @@ export default function Progress() {
     return { date: format(parseISO(date), 'MMM d'), actual: doneSets, target: totalSets || doneSets }
   })
 
-  // ── Per-exercise summary for Workout Sets card ────────────────────────────
-  const workoutExerciseSummary = useMemo(() => {
-    if (!workoutLogs?.length) return []
-
-    const planMap = new Map<string, { weight: number; reps: number; sets: number; unit: string }>()
-    activePlan?.weekTemplate.forEach(day =>
-      day.exercises.forEach(ex => planMap.set(ex.exerciseId, ex))
-    )
-
-    const map = new Map<string, {
-      name: string; doneSets: number; totalSets: number
-      bestValue: number; targetValue: number; unit: string
-    }>()
-
-    for (const log of workoutLogs) {
-      for (const ex of log.exercises) {
-        const planned = planMap.get(ex.exerciseId)
-        const isBodyweight = planned?.unit === 'bodyweight' ||
-          !ex.sets.some(s => (s.targetWeight ?? 0) > 0)
-        const isMinutes = planned?.unit === 'minutes'
-        const isMeters  = planned?.unit === 'meters'
-
-        const completedSets = ex.sets.filter(s => s.completed)
-
-        // Best value this session
-        let sessionBest: number
-        let displayUnit: string
-        let targetValue: number
-
-        if (isBodyweight) {
-          sessionBest  = completedSets.reduce((s, set) => s + (set.actualReps ?? set.targetReps ?? 0), 0)
-          targetValue  = (planned?.sets ?? ex.sets.length) * (planned?.reps ?? ex.sets[0]?.targetReps ?? 0)
-          displayUnit  = 'reps'
-        } else if (isMinutes) {
-          sessionBest  = completedSets.reduce((s, set) => s + (set.actualWeight ?? set.targetWeight ?? 0), 0)
-          targetValue  = (planned?.weight ?? 0) * (planned?.sets ?? ex.sets.length)
-          displayUnit  = 'min'
-        } else if (isMeters) {
-          sessionBest  = completedSets.reduce((s, set) => s + (set.actualWeight ?? set.targetWeight ?? 0), 0)
-          targetValue  = (planned?.weight ?? 0) * (planned?.sets ?? ex.sets.length)
-          displayUnit  = 'm'
-        } else {
-          sessionBest  = completedSets.length ? Math.max(...completedSets.map(s => s.actualWeight ?? 0)) : 0
-          targetValue  = planned?.weight ?? ex.sets[0]?.targetWeight ?? 0
-          displayUnit  = weightUnit
-        }
-
-        const existing = map.get(ex.name)
-        if (existing) {
-          existing.doneSets  += completedSets.length
-          existing.totalSets += ex.sets.length
-          existing.bestValue  = Math.max(existing.bestValue, sessionBest)
-        } else {
-          map.set(ex.name, {
-            name: ex.name,
-            doneSets:    completedSets.length,
-            totalSets:   ex.sets.length,
-            bestValue:   sessionBest,
-            targetValue,
-            unit:        displayUnit,
-          })
-        }
-      }
-    }
-
-    return [...map.values()].filter(ex => ex.totalSets > 0)
-  }, [workoutLogs, activePlan, weightUnit])
-
   // ── Weekly workout frequency (14d / 30d) ─────────────────────────────────
   const weeklyFrequency = useMemo(() => {
     const numWeeks = Math.ceil(days / 7)
@@ -198,11 +130,14 @@ export default function Progress() {
 
   // ── Weight chart data ─────────────────────────────────────────────────────
   const weightChartData = useMemo(() => {
-    if (!bodyMetrics?.length) return []
-    return [...bodyMetrics]
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .map(m => ({ date: m.date, weight: m.weight, bmi: m.bmi, bodyFat: m.bodyFat }))
-  }, [bodyMetrics])
+    // Last entry per date (later array entries overwrite earlier ones)
+    const byDate = new Map<string, { weight: number | null; bmi?: number | null; bodyFat?: number | null }>()
+    bodyMetrics?.forEach(m => byDate.set(m.date, { weight: m.weight, bmi: m.bmi, bodyFat: m.bodyFat }))
+    return dateRange.map(date => ({
+      date,
+      ...(byDate.get(date) ?? { weight: null, bmi: null, bodyFat: null }),
+    }))
+  }, [bodyMetrics, dateRange])
 
   // ── Exercise volume progression (active plan exercises only) ─────────────
   const exerciseVolume = useMemo(() => {
@@ -335,41 +270,11 @@ export default function Progress() {
           <Card border>
             <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider mb-4">💪 Workout Sets</p>
             <PlanVsActualChart data={workoutData} unit="sets" />
-            {workoutExerciseSummary.length > 0 && (
-              <div className="mt-4 pt-3 border-t border-[#2A2A2A] space-y-3">
-                {workoutExerciseSummary.map(ex => {
-                  const pct = ex.totalSets > 0 ? Math.round((ex.doneSets / ex.totalSets) * 100) : 0
-                  const delta = +(ex.bestValue - ex.targetValue).toFixed(1)
-                  const hasTarget = ex.targetValue > 0
-                  return (
-                    <div key={ex.name}>
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-xs font-semibold text-white truncate flex-1 mr-2">{ex.name}</p>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="text-xs font-bold text-white">{ex.bestValue}{ex.unit}</span>
-                          {hasTarget && delta !== 0 && (
-                            <span className={`text-[10px] font-semibold ${delta > 0 ? 'text-[#00FF87]' : 'text-[#FF4757]'}`}>
-                              {delta > 0 ? '+' : ''}{delta}{ex.unit} {delta > 0 ? '↑' : '↓'}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-[#2A2A2A] rounded-full overflow-hidden">
-                          <div className="h-full rounded-full bg-[#00FF87]" style={{ width: `${pct}%` }} />
-                        </div>
-                        <span className="text-[10px] text-[#555555] shrink-0">{ex.doneSets}/{ex.totalSets} sets</span>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
           </Card>
         </Suspense>
 
         {/* ── Weight tracking ── */}
-        {weightChartData.length >= 1 && (
+        {weightChartData.some(d => d.weight !== null) && (
           <Suspense fallback={<div className="h-44 bg-[#2A2A2A] rounded-2xl animate-pulse" />}>
             <Card border>
               <div className="flex items-center justify-between mb-4">
