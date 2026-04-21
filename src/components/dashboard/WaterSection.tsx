@@ -66,12 +66,12 @@ function WaterBottle({ percentage }: { percentage: number }) {
 
   const waterPath = clamped > 0
     ? (isAnimating
-        ? makeWavePath(surfaceY, wavePhase, W, fillBottom)
-        : `M 0 ${surfaceY} L ${W} ${surfaceY} L ${W} ${fillBottom} L 0 ${fillBottom} Z`)
+      ? makeWavePath(surfaceY, wavePhase, W, fillBottom)
+      : `M 0 ${surfaceY} L ${W} ${surfaceY} L ${W} ${fillBottom} L 0 ${fillBottom} Z`)
     : null
 
   const fillColor = '#1044c7'
-  const glowOpacity = (percentage * 0.01)/2;
+  const glowOpacity = (percentage * 0.01) / 2;
 
   return (
     <div className="relative flex items-center justify-center" style={{ width: 80, height: 80 }}>
@@ -126,19 +126,23 @@ export default function WaterSection() {
   const waterGoal = settings?.waterGoal ?? todayWater?.goal ?? 3000
   const waterPct = pct(waterTotal, waterGoal)
 
+  const accentColor = '#ffffff';
+
   return (
-    <div className="mb-5 rounded-2xl bg-gradient-to-b from-[#6b07d2] to-[#000000] border border-[#6b07d2] p-4 shadow-lg">
+    <div className="mb-5 rounded-2xl bg-[#1a1a1a] border border-[#000000] p-4 shadow-lg">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <p className="text-xs text-white-400/70 uppercase tracking-wider font-semibold">Hydration</p>
+          <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: `${accentColor}` }}>
+            Hydration
+          </p>
           <p className="text-lg font-black text-white mt-0.5">
             {formatWater(waterTotal)}
-            <span className="text-sm font-medium text-blue-400/60 ml-1.5">/ {formatWater(waterGoal)}</span>
+            <span className="text-sm font-medium ml-1.5" style={{ color: accentColor }}>/ {formatWater(waterGoal)}</span>
           </p>
         </div>
         <div className="text-right">
-          <p className="text-2xl font-black text-blue-300">{Math.round(waterPct)}%</p>
-          <p className="text-[16px] text-blue-400/50 mt-0.5">
+          <p className="text-2xl font-black" style={{ color: accentColor }}>{Math.round(waterPct)}%</p>
+          <p className="text-[16px] mt-0.5" style={{ color: `${accentColor}90` }}>
             {waterPct >= 100 ? 'Goal reached!' : `${formatWater(waterGoal - waterTotal)} left`}
           </p>
         </div>
@@ -149,19 +153,20 @@ export default function WaterSection() {
           <WaterBottle percentage={waterPct} />
         </div>
 
-        <div className="flex-1 flex flex-col gap-2">
+        <div className="flex-1 flex flex-col gap-2 ml-8">
           {WATER_PRESETS.map(({ label, amount }) => (
             <button
               key={label}
               onClick={() => { hapticLight(); addWater(amount) }}
-              className="flex items-center justify-between px-4 py-3 bg-blue-500/10 rounded-xl transition-all shadow-sm/80 shadow-blue-500/20"
+              className="flex items-center justify-between px-3 py-2 bg-black/20 active:scale-[0.98] rounded-xl transition-all text-left border border-white/40"
             >
-             
-              <span className="text-sm font-bold text-white-300 inline-flex items-center gap-3">
-                 <Plus size={24} className="text-blue-400" />
+              <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-white-300">
                 {label}
-              </span>
-              <span className="text-xs text-[#c4bdbde6] font-medium">{amount} ml</span>
+              </p>
+                <p className="text-xs text-[#c4bdbde6] font-medium">{amount} ml</p>
+              </div>
+              <Plus size={30} className="text-[#555555] p-1 shrink-0 ml-3 border rounded-full bg-[#00FF87]" />
             </button>
           ))}
         </div>

@@ -166,11 +166,9 @@ export default function FoodSection() {
   }
 
   const accentColor = '#ffffff'
-  const accentBg = 'from-[#A55C1B] to-[#000000]'
-  const borderColor = caloriePct > 100 ? 'border-red-600/50' : 'border-orange-600/40'
-
+  
   return (
-    <div className={`mb-5 rounded-2xl bg-gradient-to-b ${accentBg} border ${borderColor} p-4 shadow-lg`}>
+    <div className={`mb-5 rounded-2xl bg-[#1a1a1a] p-4 shadow-lg`}>
       <div className="flex items-center justify-between mb-4">
         <div>
           <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: `${accentColor}` }}>
@@ -228,7 +226,7 @@ export default function FoodSection() {
               <button
                 key={food.name}
                 onClick={() => quickLogFood(food)}
-                className="flex items-center justify-between px-3 py-2 bg-black/20 hover:bg-black/30 active:scale-[0.98] rounded-xl transition-all text-left border border-white/40"
+                className="flex items-center justify-between px-3 py-2 bg-black/20 active:scale-[0.98] rounded-xl transition-all text-left border border-white/40"
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-white truncate">{food.name}</p>
@@ -237,8 +235,8 @@ export default function FoodSection() {
                   </p>
                 </div>
                 {justLogged.has(food.name)
-                  ? <CheckCircle2 size={16} className="shrink-0 ml-3" style={{ color: accentColor }} />
-                  : <Plus size={30} className="text-[#555555] p-1 shrink-0 ml-3 border rounded-full bg-orange-300" />
+                  ? <CheckCircle2 size={30} className="shrink-0 ml-3" style={{ color: accentColor }} />
+                  : <Plus size={30} className="text-[#555555] p-1 shrink-0 ml-3 border rounded-full bg-[#00FF87]" />
                 }
               </button>
             ))}
@@ -248,8 +246,7 @@ export default function FoodSection() {
 
       <button
         onClick={() => setShowModal(true)}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all shadow-lg shadow-[#ff8b2050]"
-        style={{ background: `#FF8B20`, color: 'white' }}
+        className="w-full flex bg-[#00FF87] items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all text-black"
       >
         <Plus size={16} />
         Log Food / Meal
