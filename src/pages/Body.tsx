@@ -1,22 +1,25 @@
+import { eachDayOfInterval, subDays } from 'date-fns'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { Pencil, Plus, Scale, Trash2 } from 'lucide-react'
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { v4 as uuid } from 'uuid'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { Plus, Scale, Trash2, Pencil } from 'lucide-react'
 import PageHeader from '../components/layout/PageHeader'
-import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
-import Modal from '../components/ui/Modal'
-import Input from '../components/ui/Input'
+import Card from '../components/ui/Card'
 import EmptyState from '../components/ui/EmptyState'
+import Input from '../components/ui/Input'
+import Modal from '../components/ui/Modal'
 import Tooltip from '../components/ui/Tooltip'
 import { db, getSettings } from '../db'
 import { useActivePlan } from '../hooks/useActivePlan'
-import { getTodayString, formatDisplay } from '../utils/dateHelpers'
-import { calculateBMI, getBMICategory,getBodyFatCategory, navyBodyFatFromForm } from '../utils/bodyMetrics'
+import { calculateBMI, getBMICategory, getBodyFatCategory, navyBodyFatFromForm } from '../utils/bodyMetrics'
+import { formatDisplay, getTodayString, toDateString } from '../utils/dateHelpers'
 
 const BodyTrendChart = lazy(() =>
   import('../components/charts/BodyTrendChart').then(m => ({ default: m.BodyTrendChart }))
 )
+
+type Range = '7d' | '14d' | '30d'
 
 export default function Body() {
   const metrics = useLiveQuery(() => db.bodyMetrics.orderBy('date').reverse().toArray(), [])
@@ -25,6 +28,7 @@ export default function Body() {
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState({ weight: '', height: '', bodyFat: '', waist: '', neck: '', hip: '', date: getTodayString() })
+  const [range, setRange] = useState<Range>('30d')
 
   // Merge all same-date entries so duplicates (e.g. from Settings auto-log) don't hide data
   const latest = useMemo(() => {
@@ -109,12 +113,19 @@ export default function Body() {
     await db.bodyMetrics.delete(id)
   }
 
-  const chartData = [...(metrics ?? [])].reverse().slice(-30).map((m) => ({
-    date: m.date,
-    weight: m.weight,
-    bmi: m.bmi,
-    bodyFat: m.bodyFat,
-  }))
+  const chartData = useMemo(() => {
+    const days = range === '7d' ? 7 : range === '14d' ? 14 : 30
+    const today = new Date()
+    const dateRange = eachDayOfInterval({ start: subDays(today, days - 1), end: today }).map(toDateString)
+    const byDate = new Map<string, { weight: number | null; bmi?: number | null; bodyFat?: number | null }>()
+    metrics?.forEach(m => byDate.set(m.date, { weight: m.weight, bmi: m.bmi, bodyFat: m.bodyFat }))
+    let last: { weight: number | null; bmi?: number | null; bodyFat?: number | null } = { weight: null, bmi: null, bodyFat: null }
+    return dateRange.map(date => {
+      const entry = byDate.get(date)
+      if (entry) last = entry
+      return { date, ...last }
+    })
+  }, [metrics, range])
 
   return (
     <div className="pb-32">
@@ -199,10 +210,23 @@ export default function Body() {
         )}
 
         {/* Chart */}
-        {chartData.length >= 2 && (
+        {chartData.some(d => d.weight !== null) && (
           <Suspense fallback={<div className="h-44 bg-[#2A2A2A] rounded-2xl animate-pulse" />}>
             <Card border>
-              <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider mb-4">Weight Trend</p>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider">Weight Trend</p>
+                <div className="flex gap-1">
+                  {(['7d', '14d', '30d'] as Range[]).map(r => (
+                    <button
+                      key={r}
+                      onClick={() => setRange(r)}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all ${range === r ? 'bg-[#00FF87] text-[#0D0D0D]' : 'bg-[#1A1A1A] text-[#555555]'}`}
+                    >
+                      {r === '7d' ? '1W' : r === '14d' ? '2W' : '1M'}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <BodyTrendChart data={chartData} goalWeight={activePlan?.weightGoal ?? null} />
             </Card>
           </Suspense>
