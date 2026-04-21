@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { AIQuickActions } from '../components/AIQuickActions'
 import BodyMetricsSection from '../components/dashboard/BodyMetricsSection'
 import FoodSection from '../components/dashboard/FoodSection'
+import StepsSection from '../components/dashboard/StepsSection'
 import WaterSection from '../components/dashboard/WaterSection'
 import Card from '../components/ui/Card'
 import { getSettings } from '../db'
@@ -92,6 +93,9 @@ export default function Dashboard() {
 
       {/* Body Metrics Summary */}
       <BodyMetricsSection settings={settings} />
+
+      {/* Steps */}
+      <StepsSection />
 
       {/* Water Section */}
       <WaterSection />
