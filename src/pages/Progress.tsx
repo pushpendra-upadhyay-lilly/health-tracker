@@ -21,6 +21,16 @@ const BodyTrendChart = lazy(() =>
 
 type Range = '7d' | '14d' | '30d'
 
+function ChartLegend() {
+  return (
+    <div className="flex gap-3 mt-2 flex-wrap">
+      <span className="flex items-center gap-1 text-[10px] text-[#555555]"><span className="w-2 h-2 rounded-full bg-[#3B82F6] inline-block" />Today</span>
+      <span className="flex items-center gap-1 text-[10px] text-[#555555]"><span className="w-2 h-2 rounded-full bg-[#00FF87] inline-block" />Goal Met</span>
+      <span className="flex items-center gap-1 text-[10px] text-[#555555]"><span className="w-2 h-2 rounded-full bg-[#FF4757] inline-block" />Goal Missed</span>
+    </div>
+  );
+}
+
 export default function Progress() {
   const navigate = useNavigate()
   const [range, setRange] = useState<Range>('7d')
@@ -67,6 +77,7 @@ export default function Progress() {
   const waterGoal = settings?.waterGoal ?? 3000
   const calorieGoal = activePlan?.calorieGoal ?? 2000
   const weightUnit = settings?.weightUnit ?? 'kg'
+  const todayStr = toDateString(today)
 
   // ── Summary stats ─────────────────────────────────────────────────────────
   const workoutStreak = useMemo(() => {
@@ -96,23 +107,33 @@ export default function Progress() {
   }, [waterLogs, days])
 
   // ── PlanVsActual chart data ───────────────────────────────────────────────
-  const calorieData = dateRange.map((date) => ({
-    date: format(parseISO(date), 'MMM d'),
-    actual: totalCalories(mealLogs?.filter((m) => m.date === date) ?? []),
-    target: calorieGoal,
-  }))
+  const calorieData = dateRange.map((date) => {
+    const actual = totalCalories(mealLogs?.filter((m) => m.date === date) ?? [])
+    const isToday = date === todayStr
+    let barColor = '#00FF87'
+    if (isToday) barColor = '#3B82F6'
+    else if (actual >= 0 && actual < calorieGoal - 100) barColor = '#FF4757'
+    return { date: format(parseISO(date), 'MMM d'), actual, target: calorieGoal, barColor }
+  })
 
-  const waterData = dateRange.map((date) => ({
-    date: format(parseISO(date), 'MMM d'),
-    actual: totalWater(waterLogs?.find((w) => w.date === date)?.entries ?? []),
-    target: waterGoal,
-  }))
+  const waterData = dateRange.map((date) => {
+    const actual = totalWater(waterLogs?.find((w) => w.date === date)?.entries ?? [])
+    const isToday = date === todayStr
+    let barColor = '#00FF87'
+    if (isToday) barColor = '#3B82F6'
+    else if (actual >= 0 && actual < waterGoal - 250) barColor = '#FF4757'
+    return { date: format(parseISO(date), 'MMM d'), actual, target: waterGoal, barColor }
+  })
 
   const workoutData = dateRange.map((date) => {
     const log = workoutLogs?.find((w) => w.date === date)
-    const totalSets = log?.exercises.flatMap((e) => e.sets).length ?? 0
-    const doneSets = log?.exercises.flatMap((e) => e.sets).filter((s) => s.completed).length ?? 0
-    return { date: format(parseISO(date), 'MMM d'), actual: doneSets, target: totalSets || doneSets }
+    const volume = Math.round(
+      (log?.exercises.flatMap(e => e.sets) ?? [])
+        .filter(s => s.completed)
+        .reduce((sum, s) => sum + (s.actualReps ?? s.targetReps ?? 0) * (s.actualWeight ?? s.targetWeight ?? 0), 0)
+    )
+    const isToday = date === todayStr
+    return { date: format(parseISO(date), 'MMM d'), actual: volume, target: volume || 1, barColor: isToday ? '#3B82F6' : '#00FF87' }
   })
 
   // ── Weekly workout frequency (14d / 30d) ─────────────────────────────────
@@ -130,13 +151,14 @@ export default function Progress() {
 
   // ── Weight chart data ─────────────────────────────────────────────────────
   const weightChartData = useMemo(() => {
-    // Last entry per date (later array entries overwrite earlier ones)
     const byDate = new Map<string, { weight: number | null; bmi?: number | null; bodyFat?: number | null }>()
     bodyMetrics?.forEach(m => byDate.set(m.date, { weight: m.weight, bmi: m.bmi, bodyFat: m.bodyFat }))
-    return dateRange.map(date => ({
-      date,
-      ...(byDate.get(date) ?? { weight: null, bmi: null, bodyFat: null }),
-    }))
+    let last: { weight: number | null; bmi?: number | null; bodyFat?: number | null } = { weight: null, bmi: null, bodyFat: null }
+    return dateRange.map(date => {
+      const entry = byDate.get(date)
+      if (entry) last = entry
+      return { date, ...last }
+    })
   }, [bodyMetrics, dateRange])
 
   // ── Exercise volume progression (active plan exercises only) ─────────────
@@ -208,9 +230,8 @@ export default function Progress() {
           {(['7d', '14d', '30d'] as Range[]).map((r) => (
             <button
               key={r}
-              className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${
-                range === r ? 'bg-[#00FF87] text-[#0D0D0D]' : 'bg-[#1A1A1A] text-[#666666]'
-              }`}
+              className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${range === r ? 'bg-[#00FF87] text-[#0D0D0D]' : 'bg-[#1A1A1A] text-[#666666]'
+                }`}
               onClick={() => setRange(r)}
             >
               {r === '7d' ? '1 Week' : r === '14d' ? '2 Weeks' : '1 Month'}
@@ -262,14 +283,20 @@ export default function Progress() {
           <Card border>
             <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider mb-4">🔥 Calories vs Goal</p>
             <PlanVsActualChart data={calorieData} unit="kcal" referenceLine={calorieGoal} />
+            <ChartLegend />
           </Card>
           <Card border>
             <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider mb-4">💧 Water vs Goal</p>
             <PlanVsActualChart data={waterData} unit="ml" />
+            <ChartLegend />
           </Card>
           <Card border>
-            <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider mb-4">💪 Workout Sets</p>
-            <PlanVsActualChart data={workoutData} unit="sets" />
+            <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider mb-4">💪 Workout Volume</p>
+            <PlanVsActualChart data={workoutData} unit={weightUnit} />
+            <div className="flex gap-3 mt-2 flex-wrap">
+              <span className="flex items-center gap-1 text-[10px] text-[#555555]"><span className="w-2 h-2 rounded-full bg-[#3B82F6] inline-block" />Today</span>
+              <span className="flex items-center gap-1 text-[10px] text-[#555555]"><span className="w-2 h-2 rounded-full bg-[#00FF87] inline-block" />Volume logged</span>
+            </div>
           </Card>
         </Suspense>
 

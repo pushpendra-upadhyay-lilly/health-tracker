@@ -13,6 +13,7 @@ interface DataPoint {
   date: string
   actual: number
   target: number
+  barColor?: string
 }
 
 interface PlanVsActualChartProps {
@@ -26,12 +27,13 @@ const OverlayBar = (props: any) => {
   const { x, y, width, height, payload } = props
   if (!width || height == null || height < 0) return null
 
-  const { actual = 0, target = 0 } = payload
+  const { actual = 0, target = 0, barColor } = payload
   if (target <= 0) return <rect x={x} y={y} width={width} height={Math.max(height, 2)} fill="#2A2A2A" rx={3} ry={3} />
 
   const fillPct = Math.min(actual / target, 1)
   const actualH = Math.round(fillPct * height)
   const isOver = actual > target
+  const fill = barColor ?? (isOver ? '#f71010' : '#00FF87')
 
   return (
     <g>
@@ -44,7 +46,7 @@ const OverlayBar = (props: any) => {
           y={y + height - Math.max(actualH, 3)}
           width={width}
           height={Math.max(actualH, 3)}
-          fill={isOver ? '#f71010' : '#00FF87'}
+          fill={fill}
           fillOpacity={0.9}
           rx={3}
           ry={3}
@@ -58,10 +60,11 @@ const CustomTooltip = ({ active, payload, label, unit }: any) => {
   if (!active || !payload?.length) return null
   const d = payload[0].payload as DataPoint
   const isOver = d.actual > d.target
+  const color = d.barColor ?? (isOver ? '#FF6B35' : '#00FF87')
   return (
     <div style={{ background: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 8, padding: '8px 12px', fontSize: 11 }}>
       <p style={{ color: '#999', marginBottom: 4 }}>{label}</p>
-      <p style={{ color: isOver ? '#FF6B35' : '#00FF87' }}>Actual: {d.actual} {unit}</p>
+      <p style={{ color }}>Actual: {d.actual} {unit}</p>
       <p style={{ color: '#555' }}>Target: {d.target} {unit}</p>
     </div>
   )
