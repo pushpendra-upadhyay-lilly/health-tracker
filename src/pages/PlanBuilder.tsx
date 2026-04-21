@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus, Trash2, ChevronDown, ChevronUp, RefreshCw, Pencil } from 'lucide-react'
@@ -50,6 +50,14 @@ export default function PlanBuilder() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingExercise, setEditingExercise] = useState<Exercise | undefined>(undefined)
   const [saving, setSaving] = useState(false)
+  const dayRefs = useRef<Record<number, HTMLDivElement | null>>({})
+
+  useEffect(() => {
+    if (expandedDay === null) return
+    const el = dayRefs.current[expandedDay]
+    if (!el) return
+    setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50)
+  }, [expandedDay])
 
   useEffect(() => {
     if (existingPlan) {
@@ -217,7 +225,8 @@ export default function PlanBuilder() {
           const isExpanded = expandedDay === day.dayOfWeek
 
           return (
-            <Card key={day.dayOfWeek} border className={day.isRest ? 'opacity-60' : ''}>
+            <div key={day.dayOfWeek} ref={(el) => { dayRefs.current[day.dayOfWeek] = el }}>
+            <Card border className={day.isRest ? 'opacity-60' : ''}>
               {/* Day header */}
               <div
                 className="w-full flex items-center justify-between cursor-pointer"
@@ -300,6 +309,7 @@ export default function PlanBuilder() {
                 </div>
               )}
             </Card>
+            </div>
           )
         })}
       </div>
