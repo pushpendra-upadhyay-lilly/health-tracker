@@ -166,7 +166,7 @@ export default function FoodSection() {
   }
 
   const accentColor = '#ffffff'
-  const accentBg = 'from-[#FF8B20] to-[#000000]'
+  const accentBg = 'from-[#A55C1B] to-[#000000]'
   const borderColor = caloriePct > 100 ? 'border-red-600/50' : 'border-orange-600/40'
 
   return (

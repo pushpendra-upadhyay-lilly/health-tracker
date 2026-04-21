@@ -127,7 +127,7 @@ export default function WaterSection() {
   const waterPct = pct(waterTotal, waterGoal)
 
   return (
-    <div className="mb-5 rounded-2xl bg-gradient-to-b from-[#1250ad] to-[#000000] border border-blue-900 p-4 shadow-lg">
+    <div className="mb-5 rounded-2xl bg-gradient-to-b from-[#6b07d2] to-[#000000] border border-[#6b07d2] p-4 shadow-lg">
       <div className="flex items-center justify-between mb-4">
         <div>
           <p className="text-xs text-white-400/70 uppercase tracking-wider font-semibold">Hydration</p>
@@ -158,7 +158,7 @@ export default function WaterSection() {
             >
              
               <span className="text-sm font-bold text-white-300 inline-flex items-center gap-3">
-                 <Plus size={28} className="text-blue-400" />
+                 <Plus size={24} className="text-blue-400" />
                 {label}
               </span>
               <span className="text-xs text-[#c4bdbde6] font-medium">{amount} ml</span>
