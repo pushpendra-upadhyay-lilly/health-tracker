@@ -166,7 +166,7 @@ export default function WaterSection() {
               </p>
                 <p className="text-xs text-[#c4bdbde6] font-medium">{amount} ml</p>
               </div>
-              <Plus size={30} className="text-[#555555] p-1 shrink-0 ml-3 border rounded-full bg-[#00FF87]" />
+              <Plus size={30} className="text-black p-1 shrink-0 ml-3 border rounded-full bg-[#00FF87]" />
             </button>
           ))}
         </div>

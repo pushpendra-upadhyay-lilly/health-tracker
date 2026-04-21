@@ -236,7 +236,7 @@ export default function FoodSection() {
                 </div>
                 {justLogged.has(food.name)
                   ? <CheckCircle2 size={30} className="shrink-0 ml-3" style={{ color: accentColor }} />
-                  : <Plus size={30} className="text-[#555555] p-1 shrink-0 ml-3 border rounded-full bg-[#00FF87]" />
+                  : <Plus size={30} className="text-black p-1 shrink-0 ml-3 border rounded-full bg-[#00FF87]" />
                 }
               </button>
             ))}
