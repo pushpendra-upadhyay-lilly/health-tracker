@@ -48,7 +48,7 @@ export default function PlanBuilder() {
   const [exerciseFilter, setExerciseFilter] = useState<MuscleGroup | 'all'>('all')
   const [exerciseSearch, setExerciseSearch] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [editingExercise, setEditingExercise] = useState<Exercise | undefined>(undefined)
+  const [editingPlanned, setEditingPlanned] = useState<{ dayOfWeek: number; index: number; exercise: PlannedExercise } | null>(null)
   const [saving, setSaving] = useState(false)
   const dayRefs = useRef<Record<number, HTMLDivElement | null>>({})
 
@@ -123,9 +123,9 @@ export default function PlanBuilder() {
   }
 
 
-  const handleExerciseSaved = (exercise: Exercise) => {
+  const handleExerciseSaved = (data: Exercise | PlannedExercise) => {
     if (showExercisePicker !== null) {
-      addExercise(showExercisePicker, exercise)
+      addExercise(showExercisePicker, data as Exercise)
     }
     setShowCreateModal(false)
   }
@@ -271,7 +271,7 @@ export default function PlanBuilder() {
                           <button
                             className="p-1.5 rounded-lg text-[#A0A0A0] hover:text-[#00FF87] hover:bg-[#00FF87]/10 transition-all"
                             title="Edit exercise"
-                            onClick={() => setEditingExercise(allExercises?.find(e => e.id === ex.exerciseId))}
+                            onClick={() => setEditingPlanned({ dayOfWeek: day.dayOfWeek, index: idx, exercise: ex })}
                           >
                             <Pencil size={13} />
                           </button>
@@ -415,10 +415,23 @@ export default function PlanBuilder() {
 
       {/* Edit Exercise Modal */}
       <ExerciseFormModal
-        isOpen={editingExercise !== undefined}
-        onClose={() => setEditingExercise(undefined)}
-        onSaved={() => setEditingExercise(undefined)}
-        exercise={editingExercise}
+        isOpen={editingPlanned !== null}
+        onClose={() => setEditingPlanned(null)}
+        onSaved={(data) => {
+          if (editingPlanned) {
+            const { dayOfWeek, index } = editingPlanned
+            setWeekTemplate((prev) =>
+              prev.map((d) =>
+                d.dayOfWeek !== dayOfWeek ? d : {
+                  ...d,
+                  exercises: d.exercises.map((ex, i) => i === index ? data as PlannedExercise : ex),
+                }
+              )
+            )
+          }
+          setEditingPlanned(null)
+        }}
+        plannedExercise={editingPlanned?.exercise}
       />
     </div>
   )
