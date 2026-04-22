@@ -2,7 +2,6 @@ import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import AppShell from './components/layout/AppShell'
-import UpdatePrompt from './components/UpdatePrompt'
 import { ErrorBoundary } from './components/ui/ErrorBoundary'
 import FloatingTimer from './components/ui/FloatingTimer'
 import { TimerProvider } from './contexts/TimerContext'
@@ -97,7 +96,6 @@ export default function App() {
       <TimerProvider>
         <AppRoutes />
         <FloatingTimer />
-        <UpdatePrompt />
       </TimerProvider>
     </BrowserRouter>
   )

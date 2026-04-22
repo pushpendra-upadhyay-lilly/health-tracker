@@ -12,7 +12,6 @@ import Input from '../components/ui/Input'
 import { db, getSettings, updateSettings } from '../db'
 import { exportData, importData } from '../utils/exportImport'
 import { useNotifications } from '../hooks/useNotifications'
-import { isNative } from '../utils/platform'
 import { getGeminiApiKey, setGeminiApiKey } from '../services/gemini'
 import { getTodayString } from '../utils/dateHelpers'
 import { calculateBMI } from '../utils/calculations'
@@ -20,7 +19,12 @@ import { calculateBMI } from '../utils/calculations'
 export default function Settings() {
   const navigate = useNavigate()
   const settings = useLiveQuery(() => getSettings())
-  const { requestPermission, isSupported, isGranted, scheduleWorkoutReminder, cancelWorkoutReminder, startWaterReminders, stopWaterReminders } = useNotifications()
+  const { requestPermission, checkPermission, initReminders, stopAllReminders } = useNotifications()
+  const [notifGranted, setNotifGranted] = useState(false)
+
+  useEffect(() => {
+    checkPermission().then(setNotifGranted)
+  }, [])
 
   const [name, setName] = useState('')
   const [gender, setGender] = useState<'male' | 'female' | 'other' | null>(null)
@@ -85,44 +89,25 @@ export default function Settings() {
   }
 
   const handleNotificationToggle = async (enabled: boolean) => {
-    if (enabled && !isGranted) {
+    if (enabled && !notifGranted) {
       const granted = await requestPermission()
       if (!granted) return
+      setNotifGranted(true)
     }
-    await updateSettings({ notificationsEnabled: enabled })
-    // Cancel all reminders when notifications are disabled
-    if (!enabled) {
-      await cancelWorkoutReminder()
-      await stopWaterReminders()
-      await updateSettings({ workoutReminderTime: null, waterReminderInterval: null })
-    }
-  }
-
-  const handleWorkoutReminderToggle = async (enabled: boolean) => {
+    await updateSettings({
+      notificationsEnabled: enabled,
+      workoutReminderTime: enabled ? (settings?.workoutReminderTime ?? '08:00') : null,
+    })
     if (enabled) {
-      const time = settings?.workoutReminderTime ?? '08:00'
-      await updateSettings({ workoutReminderTime: time })
-      await scheduleWorkoutReminder(time)
+      await initReminders()
     } else {
-      await cancelWorkoutReminder()
-      await updateSettings({ workoutReminderTime: null })
+      await stopAllReminders()
     }
   }
 
   const handleWorkoutReminderTimeChange = async (time: string) => {
     await updateSettings({ workoutReminderTime: time })
-    await scheduleWorkoutReminder(time)
-  }
-
-  const handleWaterReminderToggle = async (enabled: boolean) => {
-    if (enabled) {
-      const interval = settings?.waterReminderInterval ?? 60
-      await updateSettings({ waterReminderInterval: interval })
-      await startWaterReminders(interval)
-    } else {
-      await stopWaterReminders()
-      await updateSettings({ waterReminderInterval: null })
-    }
+    await initReminders()
   }
 
   const handleImport = () => {
@@ -239,48 +224,29 @@ export default function Settings() {
         {/* Notifications */}
         <section>
           <SectionHeader icon={<Bell size={12} />} label="Notifications" />
-          {(isSupported || isNative) ? (
-            <Card border>
-              <div className="space-y-3">
-                <Toggle
-                  checked={settings?.notificationsEnabled ?? false}
-                  onChange={handleNotificationToggle}
-                  label={isGranted ? 'Enable reminders' : 'Enable notifications (requires permission)'}
-                />
-                {settings?.notificationsEnabled && isGranted && (
-                  <>
-                    <Toggle
-                      checked={settings?.workoutReminderTime !== null && settings?.workoutReminderTime !== undefined}
-                      onChange={handleWorkoutReminderToggle}
-                      label="Daily workout reminder"
-                    />
-                    {settings?.workoutReminderTime && (
-                      <div className="flex items-center justify-between pl-1">
-                        <span className="text-sm text-[#555555]">Reminder time</span>
-                        <input
-                          type="time"
-                          value={settings.workoutReminderTime}
-                          onChange={(e) => handleWorkoutReminderTimeChange(e.target.value)}
-                          className="bg-[#0D0D0D] border border-[#2A2A2A] rounded-lg px-3 py-1.5 text-sm text-white"
-                        />
-                      </div>
-                    )}
-                    <Toggle
-                      checked={settings?.waterReminderInterval !== null && settings?.waterReminderInterval !== undefined}
-                      onChange={handleWaterReminderToggle}
-                      label="Drink water reminder (every hour)"
-                    />
-                  </>
-                )}
-              </div>
-            </Card>
-          ) : (
-            <Card border>
-              <p className="text-sm text-[#555555]">
-                Notifications are not supported in this browser. Install the app for full notification support.
-              </p>
-            </Card>
-          )}
+          <Card border>
+            <div className="space-y-3">
+              <Toggle
+                checked={settings?.notificationsEnabled ?? false}
+                onChange={handleNotificationToggle}
+                label="Enable reminders"
+              />
+              {settings?.notificationsEnabled && (
+                <div className="flex items-center justify-between pl-1">
+                  <span className="text-sm text-[#555555]">Workout reminder time</span>
+                  <input
+                    type="time"
+                    value={settings.workoutReminderTime ?? '08:00'}
+                    onChange={(e) => handleWorkoutReminderTimeChange(e.target.value)}
+                    className="bg-[#0D0D0D] border border-[#2A2A2A] rounded-lg px-3 py-1.5 text-sm text-white"
+                  />
+                </div>
+              )}
+              {settings?.notificationsEnabled && (
+                <p className="text-xs text-[#444] pl-1">Water reminders adapt automatically to your daily goal.</p>
+              )}
+            </div>
+          </Card>
         </section>
 
         {/* AI */}

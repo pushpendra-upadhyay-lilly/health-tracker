@@ -1,7 +1,6 @@
 import { LocalNotifications } from '@capacitor/local-notifications'
 import { db, getSettings } from '../db'
-
-// ─── Register action types for water notifications ────────────────────────────
+import { rescheduleWaterReminders } from '../hooks/useNotifications'
 
 export async function registerNativeNotificationActions() {
   await LocalNotifications.registerActionTypes({
@@ -13,8 +12,6 @@ export async function registerNativeNotificationActions() {
     ],
   })
 }
-
-// ─── Handle notification action taps ────────────────────────────────────────
 
 export function initNativeNotificationListeners() {
   LocalNotifications.addListener('localNotificationActionPerformed', async (event) => {
@@ -36,6 +33,9 @@ export function initNativeNotificationListeners() {
           goal: settings.waterGoal,
         })
       }
+
+      // Re-evaluate water reminders now that intake has changed
+      await rescheduleWaterReminders()
     }
   })
 }

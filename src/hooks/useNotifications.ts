@@ -1,185 +1,163 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
 import { LocalNotifications } from '@capacitor/local-notifications'
-import { isNative } from '../utils/platform'
+import { db, getSettings } from '../db'
+import { getTodayString } from '../utils/dateHelpers'
 
-// ─── Notification IDs (stable, so we can cancel by ID) ───────────────────────
+const WATER_ID_BASE = 2000   // 2000–2099
+const WORKOUT_ID_BASE = 3000 // 3000–3006 (one per day, 7-day lookahead)
 
-const WATER_NOTIFICATION_ID = 1001
-const WORKOUT_NOTIFICATION_ID = 1002
+// ─── Smart Water Reminders ────────────────────────────────────────────────────
+// Schedules water reminders for the rest of today based on current intake.
+// Interval is derived from how many glasses remain and how much time is left
+// in the active window (08:00–22:00). Clamps to 20–90 min.
+// Call this whenever intake changes or the app comes to foreground.
 
-// ─── SW messaging helpers (web path) ────────────────────────────────────────
+export async function rescheduleWaterReminders(): Promise<void> {
+  const cancelIds = Array.from({ length: 100 }, (_, i) => ({ id: WATER_ID_BASE + i }))
+  await LocalNotifications.cancel({ notifications: cancelIds })
 
-async function postToSW(message: Record<string, unknown>) {
-  if (!('serviceWorker' in navigator)) return
-  const reg = await navigator.serviceWorker.ready
-  const sw = reg.active
-  if (!sw) return
+  const settings = await getSettings()
+  if (!settings.notificationsEnabled) return
 
-  if (sw.state === 'activated') {
-    sw.postMessage(message)
-    return
+  const today = getTodayString()
+  const log = await db.waterLogs.where('date').equals(today).first()
+  const intakeMl = log?.entries.reduce((sum, e) => sum + e.amount, 0) ?? 0
+  const goalMl = settings.waterGoal
+
+  if (intakeMl >= goalMl) return
+
+  const now = new Date()
+  const todayBase = now.toDateString()
+  const windowStart = new Date(`${todayBase} 08:00:00`)
+  const windowEnd = new Date(`${todayBase} 22:00:00`)
+
+  if (now >= windowEnd) return
+
+  const effectiveStart = now > windowStart ? now : windowStart
+  const remainingMs = windowEnd.getTime() - effectiveStart.getTime()
+  const remainingMl = goalMl - intakeMl
+  const glassSize = 250
+  const remainingGlasses = Math.ceil(remainingMl / glassSize)
+
+  if (remainingGlasses <= 0) return
+
+  const intervalMs = Math.max(
+    20 * 60 * 1000,
+    Math.min(90 * 60 * 1000, remainingMs / remainingGlasses),
+  )
+
+  const totalGlasses = Math.ceil(goalMl / glassSize)
+  let glassesDone = Math.floor(intakeMl / glassSize)
+  let nextTime = new Date(effectiveStart.getTime() + intervalMs)
+  let id = WATER_ID_BASE
+  const notifications: Parameters<typeof LocalNotifications.schedule>[0]['notifications'] = []
+
+  while (nextTime < windowEnd && id < WATER_ID_BASE + 100) {
+    glassesDone++
+    const glassesLeft = totalGlasses - glassesDone
+    const body = glassesLeft <= 0
+      ? `One more — you're almost at your ${goalMl / 1000}L goal!`
+      : `${glassesDone}/${totalGlasses} glasses done — ${glassesLeft} to go.`
+
+    notifications.push({
+      id: id++,
+      title: '💧 Time to hydrate!',
+      body,
+      schedule: { at: new Date(nextTime), allowWhileIdle: true },
+      actionTypeId: 'WATER_ACTIONS',
+      extra: null,
+    })
+
+    nextTime = new Date(nextTime.getTime() + intervalMs)
+    if (glassesDone >= totalGlasses) break
   }
 
-  await new Promise<void>((resolve) => {
-    sw.addEventListener('statechange', function onStateChange() {
-      if (sw.state === 'activated') {
-        sw.removeEventListener('statechange', onStateChange)
-        resolve()
-      }
+  if (notifications.length > 0) {
+    await LocalNotifications.schedule({ notifications })
+  }
+}
+
+// ─── Plan-aware Workout Reminders ─────────────────────────────────────────────
+// Schedules one notification per upcoming workout day (7-day lookahead).
+// Skips rest days, days with no exercises, and days where the workout is
+// already completed. Re-schedule whenever the plan or reminder time changes.
+
+export async function rescheduleWorkoutReminders(): Promise<void> {
+  const cancelIds = Array.from({ length: 7 }, (_, i) => ({ id: WORKOUT_ID_BASE + i }))
+  await LocalNotifications.cancel({ notifications: cancelIds })
+
+  const settings = await getSettings()
+  if (!settings.notificationsEnabled || !settings.workoutReminderTime || !settings.activePlanId) return
+
+  const plan = await db.plans.get(settings.activePlanId)
+  if (!plan) return
+
+  const [hours, minutes] = settings.workoutReminderTime.split(':').map(Number)
+  const now = new Date()
+  const notifications: Parameters<typeof LocalNotifications.schedule>[0]['notifications'] = []
+
+  for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+    const fireAt = new Date(now)
+    fireAt.setDate(now.getDate() + dayOffset)
+    fireAt.setHours(hours, minutes, 0, 0)
+
+    if (fireAt <= now) continue
+
+    const dow = fireAt.getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6
+    const dayPlan = plan.weekTemplate.find(d => d.dayOfWeek === dow)
+    if (!dayPlan || dayPlan.isRest || dayPlan.exercises.length === 0) continue
+
+    const dateStr = fireAt.toISOString().split('T')[0]
+    const workoutLog = await db.workoutLogs.where('date').equals(dateStr).first()
+    if (workoutLog?.completed) continue
+
+    const preview = dayPlan.exercises.slice(0, 2).map(e => e.name).join(' & ')
+    const body = preview
+      ? `${preview} — time to get it done.`
+      : "Your workout is ready. Let's go!"
+
+    notifications.push({
+      id: WORKOUT_ID_BASE + dayOffset,
+      title: '💪 Workout time!',
+      body,
+      schedule: { at: fireAt, allowWhileIdle: true },
+      actionTypeId: '',
+      extra: null,
     })
-  })
-  sw.postMessage(message)
+  }
+
+  if (notifications.length > 0) {
+    await LocalNotifications.schedule({ notifications })
+  }
 }
 
-// ─── Page-level fallback (web path, used when SW is not available) ────────────
-let pageIntervalId: ReturnType<typeof setInterval> | null = null
-
-function firePageNotification() {
-  if (Notification.permission !== 'granted') return
-  new Notification('💧 Time to hydrate!', {
-    body: 'Drink a glass of water to stay on track with your daily goal.',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
-  })
-}
-
-// ─── Hook ────────────────────────────────────────────────────────────────────
+// ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useNotifications() {
-  const [nativePermissionGranted, setNativePermissionGranted] = useState(false)
-
-  useEffect(() => {
-    if (!isNative) return
-    LocalNotifications.checkPermissions().then((result) => {
-      setNativePermissionGranted(result.display === 'granted')
-    })
-  }, [])
-
   const requestPermission = useCallback(async (): Promise<boolean> => {
-    if (isNative) {
-      const result = await LocalNotifications.requestPermissions()
-      const granted = result.display === 'granted'
-      setNativePermissionGranted(granted)
-      return granted
-    }
-    if (!('Notification' in window)) return false
-    if (Notification.permission === 'granted') return true
-    const result = await Notification.requestPermission()
-    return result === 'granted'
+    const result = await LocalNotifications.requestPermissions()
+    return result.display === 'granted'
   }, [])
 
-  const scheduleWorkoutReminder = useCallback(async (time: string | null) => {
-    if (isNative) {
-      // Cancel any existing workout reminder first
-      await LocalNotifications.cancel({ notifications: [{ id: WORKOUT_NOTIFICATION_ID }] })
-      if (!time) return
-
-      const [hours, minutes] = time.split(':').map(Number)
-      await LocalNotifications.schedule({
-        notifications: [{
-          id: WORKOUT_NOTIFICATION_ID,
-          title: 'Time to work out!',
-          body: 'Your scheduled workout is ready. Open Body Sync to get started.',
-          schedule: {
-            on: { hour: hours, minute: minutes },
-            allowWhileIdle: true,
-          },
-          actionTypeId: '',
-          extra: null,
-        }],
-      })
-    }
-    // Web: workout reminders via SW push not yet supported (requires push server)
+  const checkPermission = useCallback(async (): Promise<boolean> => {
+    const result = await LocalNotifications.checkPermissions()
+    return result.display === 'granted'
   }, [])
 
-  const cancelWorkoutReminder = useCallback(async () => {
-    if (isNative) {
-      await LocalNotifications.cancel({ notifications: [{ id: WORKOUT_NOTIFICATION_ID }] })
-    }
+  const initReminders = useCallback(async () => {
+    await Promise.all([rescheduleWaterReminders(), rescheduleWorkoutReminders()])
   }, [])
 
-  const startWaterReminders = useCallback(async (intervalMinutes: number) => {
-    if (isNative) {
-      // Cancel any previous water reminder
-      await LocalNotifications.cancel({ notifications: [{ id: WATER_NOTIFICATION_ID }] })
-      await LocalNotifications.schedule({
-        notifications: [{
-          id: WATER_NOTIFICATION_ID,
-          title: '💧 Time to hydrate!',
-          body: 'Drink a glass of water to stay on track with your daily goal.',
-          schedule: {
-            every: 'minute',
-            count: intervalMinutes,
-            allowWhileIdle: true,
-          },
-          actionTypeId: 'WATER_ACTIONS',
-          extra: null,
-        }],
-      })
-      return
-    }
-
-    // Web path
-    if (!('Notification' in window) || Notification.permission !== 'granted') return
-    const intervalMs = intervalMinutes * 60 * 1000
-    if ('serviceWorker' in navigator) {
-      await postToSW({ type: 'START_WATER_REMINDER', intervalMs })
-      if (pageIntervalId !== null) { clearInterval(pageIntervalId); pageIntervalId = null }
-    } else {
-      if (pageIntervalId !== null) clearInterval(pageIntervalId)
-      pageIntervalId = setInterval(firePageNotification, intervalMs)
-    }
+  const stopAllReminders = useCallback(async () => {
+    const waterIds = Array.from({ length: 100 }, (_, i) => ({ id: WATER_ID_BASE + i }))
+    const workoutIds = Array.from({ length: 7 }, (_, i) => ({ id: WORKOUT_ID_BASE + i }))
+    await LocalNotifications.cancel({ notifications: [...waterIds, ...workoutIds] })
   }, [])
-
-  const stopWaterReminders = useCallback(async () => {
-    if (isNative) {
-      await LocalNotifications.cancel({ notifications: [{ id: WATER_NOTIFICATION_ID }] })
-      return
-    }
-
-    // Web path
-    if ('serviceWorker' in navigator) {
-      await postToSW({ type: 'STOP_WATER_REMINDER' })
-    }
-    if (pageIntervalId !== null) {
-      clearInterval(pageIntervalId)
-      pageIntervalId = null
-    }
-  }, [])
-
-  const scheduleReminder = useCallback((title: string, body: string, delayMs: number) => {
-    if (isNative) {
-      LocalNotifications.schedule({
-        notifications: [{
-          id: Date.now(),
-          title,
-          body,
-          schedule: { at: new Date(Date.now() + delayMs), allowWhileIdle: true },
-          actionTypeId: '',
-          extra: null,
-        }],
-      })
-      return
-    }
-    if (Notification.permission !== 'granted') return
-    setTimeout(() => {
-      new Notification(title, { body, icon: '/icon-192.png', badge: '/icon-192.png' })
-    }, delayMs)
-  }, [])
-
-  const isSupported = isNative || ('Notification' in window)
-  const isGranted = isNative
-    ? nativePermissionGranted
-    : ('Notification' in window && Notification.permission === 'granted')
 
   return {
     requestPermission,
-    scheduleReminder,
-    scheduleWorkoutReminder,
-    cancelWorkoutReminder,
-    startWaterReminders,
-    stopWaterReminders,
-    isSupported,
-    isGranted,
+    checkPermission,
+    initReminders,
+    stopAllReminders,
   }
 }
