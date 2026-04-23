@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie'
 import type { Plan, WorkoutLog, WaterLog, MealLog, BodyMetric, Exercise, UserSettings, CustomFood } from './types'
+import { DEFAULT_STEP_GOAL } from '../data/constants'
 
 interface MigrationRecord {
   id: string
@@ -69,6 +70,7 @@ export async function getSettings(): Promise<UserSettings> {
     currentWeight: null,
     height: null,
     waterGoal: 3000,
+    stepGoal: DEFAULT_STEP_GOAL,
     weightUnit: 'kg',
     notificationsEnabled: false,
     workoutReminderTime: null,

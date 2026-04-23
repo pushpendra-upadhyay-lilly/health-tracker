@@ -6,12 +6,14 @@ import Modal from '../ui/Modal'
 import Input from '../ui/Input'
 import Select from '../ui/Select'
 import Button from '../ui/Button'
-import { db } from '../../db'
+import { db, getSettings } from '../../db'
 import type { CustomFood, MealLog, MealType } from '../../db/types'
 import { getTodayString } from '../../utils/dateHelpers'
 import { chat } from '../../services/gemini'
 import { extractJson } from '../../utils/extractJson'
 import { MEAL_EMOJIS, MEAL_TYPES } from '../../data/constants'
+import { healthSync } from '../../services/healthSyncPlugin'
+import { useTodayMeals } from '../../hooks/useTodayMeals'
 
 export { MEAL_EMOJIS, MEAL_TYPES }
 
@@ -25,6 +27,7 @@ interface AiForm {
 
 export default function LogMealModal({ isOpen, onClose, defaultMealType }: { isOpen: boolean; onClose: () => void; defaultMealType?: MealType }) {
   const customFoods = useLiveQuery(() => db.customFoods.orderBy('createdAt').reverse().toArray(), []) ?? []
+  const todayMeals = useTodayMeals()
 
   const [mealType, setMealType] = useState<MealType>(defaultMealType ?? 'snack')
   const [foodSearch, setFoodSearch] = useState('')
@@ -47,6 +50,12 @@ export default function LogMealModal({ isOpen, onClose, defaultMealType }: { isO
     onClose()
   }
 
+  const syncMealData = async () => {
+    const settings = await getSettings()
+    const totalCalories = todayMeals.reduce((sum, m) => sum + m.calories, 0)
+    await healthSync.syncMealData(todayMeals.length, totalCalories, settings.activePlanId ? 2000 : 0)
+  }
+
   const handleAddCustomFoodMeal = async (food: CustomFood) => {
     const meal: MealLog = {
       id: uuid(),
@@ -60,6 +69,7 @@ export default function LogMealModal({ isOpen, onClose, defaultMealType }: { isO
       createdAt: new Date().toISOString(),
     }
     await db.mealLogs.put(meal)
+    await syncMealData()
     resetModal()
   }
 
@@ -83,6 +93,7 @@ export default function LogMealModal({ isOpen, onClose, defaultMealType }: { isO
     if (!existing) {
       await db.customFoods.put({ id: uuid(), name, calories, protein, carbs, fat, createdAt: now })
     }
+    await syncMealData()
     resetModal()
   }
 

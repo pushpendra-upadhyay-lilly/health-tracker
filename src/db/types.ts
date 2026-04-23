@@ -151,6 +151,7 @@ export interface UserSettings {
   currentWeight: number | null // kg
   height: number | null        // cm
   waterGoal: number            // ml, default 3000
+  stepGoal: number             // steps/day, default 10000
   weightUnit: 'kg' | 'lbs'
   notificationsEnabled: boolean
   workoutReminderTime: string | null  // 'HH:MM'

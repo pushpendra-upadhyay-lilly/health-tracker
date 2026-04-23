@@ -15,6 +15,7 @@ import { useNotifications } from '../hooks/useNotifications'
 import { getGeminiApiKey, setGeminiApiKey } from '../services/gemini'
 import { getTodayString } from '../utils/dateHelpers'
 import { calculateBMI } from '../utils/calculations'
+import { healthSync } from '../services/healthSyncPlugin'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -31,6 +32,7 @@ export default function Settings() {
   const [height, setHeight] = useState('')
   const [currentWeight, setCurrentWeight] = useState('')
   const [waterGoal, setWaterGoal] = useState('')
+  const [stepGoal, setStepGoal] = useState('')
   const [saving, setSaving] = useState(false)
   const [importStatus, setImportStatus] = useState<string | null>(null)
   const [geminiKey, setGeminiKey] = useState('')
@@ -60,6 +62,7 @@ export default function Settings() {
       setHeight(settings.height ? String(settings.height) : '')
       setCurrentWeight(settings.currentWeight ? String(settings.currentWeight) : '')
       setWaterGoal(String(settings.waterGoal))
+      setStepGoal(String(settings.stepGoal))
     }
   }, [settings])
 
@@ -72,7 +75,10 @@ export default function Settings() {
       height: height ? parseFloat(height) : null,
       currentWeight: parsed,
       waterGoal: parseInt(waterGoal) || 3000,
+      stepGoal: parseInt(stepGoal) || 10000,
     })
+    // Sync step goal to widget
+    await healthSync.syncStepData(0, parseInt(stepGoal) || 10000)
     // Auto-log a body metric entry whenever weight is saved
     if (parsed !== null) {
       const h = height ? parseFloat(height) : (settings?.height ?? null)
@@ -194,7 +200,10 @@ export default function Settings() {
                 <Input label="Height" type="number" suffix="cm" value={height} onChange={(e) => setHeight(e.target.value)} />
                 <Input label="Current Weight" type="number" suffix="kg" value={currentWeight} onChange={(e) => setCurrentWeight(e.target.value)} />
               </div>
-              <Input label="Water Goal" type="number" suffix="ml" value={waterGoal} onChange={(e) => setWaterGoal(e.target.value)} />
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Water Goal" type="number" suffix="ml" value={waterGoal} onChange={(e) => setWaterGoal(e.target.value)} />
+                <Input label="Step Goal" type="number" suffix="steps" value={stepGoal} onChange={(e) => setStepGoal(e.target.value)} />
+              </div>
               <Button fullWidth size="sm" onClick={handleSave} disabled={saving}>
                 {saving ? 'Saved!' : 'Save Changes'}
               </Button>

@@ -12,3 +12,5 @@ export const MEAL_TYPES: { value: MealType; label: string }[] = [
 export const MEAL_EMOJIS: Record<MealType, string> = {
   breakfast: '🌅', lunch: '☀️', dinner: '🌙', snack: '🍎', pre_workout: '💪', post_workout: '🔥',
 }
+
+export const DEFAULT_STEP_GOAL = 10000

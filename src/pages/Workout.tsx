@@ -16,6 +16,7 @@ import type { WorkoutLog, ExerciseLog, SetLog, ExerciseUnit } from '../db/types'
 import { getDayOfWeek, getTodayString, DAY_FULL_LABELS } from '../utils/dateHelpers'
 import { pct } from '../utils/calculations'
 import { hapticMedium, hapticSuccess } from '../utils/haptics'
+import { healthSync } from '../services/healthSyncPlugin'
 
 export default function Workout() {
   const navigate = useNavigate()
@@ -137,6 +138,9 @@ export default function Workout() {
       startedAt: new Date().toISOString(),
     }
     await db.workoutLogs.put(log)
+
+    // Sync to widget
+    await healthSync.syncWorkoutData(true, false)
   }
 
   const toggleSet = async (exIdx: number, setIdx: number) => {
@@ -156,6 +160,9 @@ export default function Workout() {
     if (updated.completed) updated.completedAt = new Date().toISOString()
 
     await db.workoutLogs.put(updated)
+
+    // Sync to widget
+    await healthSync.syncWorkoutData(true, updated.completed)
 
     // Haptic feedback on set completion
     if (!wasCompleted && set.completed) {
