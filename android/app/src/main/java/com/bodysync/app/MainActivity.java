@@ -3,6 +3,7 @@ package com.bodysync.app;
 import android.content.Intent;
 import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;
+import com.bodysync.app.plugins.HealthSyncPlugin;
 
 public class MainActivity extends BridgeActivity {
   @Override
