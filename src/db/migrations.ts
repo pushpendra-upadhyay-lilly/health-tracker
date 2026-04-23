@@ -1,4 +1,5 @@
 import { db } from './index'
+import { DEFAULT_STEP_GOAL } from '../data/constants'
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
 
@@ -44,6 +45,22 @@ const MIGRATIONS: { id: string; run: () => Promise<void> }[] = [
           calorieTarget: undefined,
           waterTarget: undefined,
         } as any)
+      }
+    },
+  },
+  {
+    id: 'v4_add_step_goal',
+    run: async () => {
+      // Add stepGoal to UserSettings
+      const settings = await db.settings.get('user')
+      if (settings) {
+        const raw = settings as any
+        if (!raw.stepGoal) {
+          await db.settings.put({
+            ...settings,
+            stepGoal: DEFAULT_STEP_GOAL,
+          } as any)
+        }
       }
     },
   },

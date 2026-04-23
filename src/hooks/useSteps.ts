@@ -1,5 +1,7 @@
 import { Health } from '@capgo/capacitor-health'
 import { useEffect, useState } from 'react'
+import { getSettings } from '../db'
+import { healthSync } from '../services/healthSyncPlugin'
 
 export function useSteps() {
   const [steps, setSteps] = useState<number | null>(null)
@@ -39,7 +41,12 @@ export function useSteps() {
       bucket: 'day',
       aggregation: 'sum',
     })
-    setSteps(result.samples[0]?.value ?? 0)
+    const stepCount = result.samples[0]?.value ?? 0
+    setSteps(stepCount)
+
+    // Sync to widget
+    const settings = await getSettings()
+    await healthSync.syncStepData(stepCount, settings.stepGoal)
   }
 
   async function connect() {

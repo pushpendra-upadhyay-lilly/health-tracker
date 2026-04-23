@@ -18,7 +18,18 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="com.bodysync.app.LOG_WATER" />
+            </intent-filter>
         </activity>
+
+        <receiver
+            android:name=".HealthWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.bodysync.app.LOG_WATER" />
+            </intent-filter>
+        </receiver>
 
         <provider
             android:name="androidx.core.content.FileProvider"
