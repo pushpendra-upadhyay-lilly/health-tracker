@@ -14,9 +14,9 @@ import com.getcapacitor.JSObject
 import com.getcapacitor.PermissionState
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
+import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import com.getcapacitor.annotation.Permission
-import com.getcapacitor.annotation.PluginMethod
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -62,30 +62,26 @@ class HealthSyncPlugin : Plugin() {
   @PluginMethod
   fun syncWaterData(call: PluginCall) {
     try {
-      val waterToday = call.getObject("waterToday")
-      val goal = call.getInt("goal", 3000)
-
-      val prefs = getSharedPrefs()
-      val editor = prefs.edit()
-
-      val waterAmount = if (waterToday != null) {
-        val entries = waterToday.getJSArray("entries")
-        var totalAmount = 0
+      val goal = call.data.optInt("goal", 3000)
+      val waterTodayObj = call.data.optJSONObject("waterToday")
+      val waterAmount = if (waterTodayObj != null) {
+        val entries = waterTodayObj.optJSONArray("entries")
+        var total = 0
         if (entries != null) {
           for (i in 0 until entries.length()) {
-            val entry = entries.getJSObject(i)
-            totalAmount += entry?.getInt("amount", 0) ?: 0
+            total += entries.optJSONObject(i)?.optInt("amount", 0) ?: 0
           }
         }
-        totalAmount
+        total
       } else {
         0
       }
 
-      editor.putInt("bodysync_water_today", waterAmount)
-      editor.putInt("bodysync_water_goal", goal)
-      editor.putLong("bodysync_updated_at", System.currentTimeMillis())
-      editor.apply()
+      getSharedPrefs().edit()
+        .putInt("bodysync_water_today", waterAmount)
+        .putInt("bodysync_water_goal", goal)
+        .putLong("bodysync_updated_at", System.currentTimeMillis())
+        .apply()
 
       call.resolve()
     } catch (error: Exception) {
@@ -96,18 +92,16 @@ class HealthSyncPlugin : Plugin() {
   @PluginMethod
   fun syncMealData(call: PluginCall) {
     try {
-      val mealCount = call.getInt("mealCount", 0)
-      val calories = call.getInt("calories", 0)
-      val goal = call.getInt("goal", 2000)
+      val mealCount = call.data.optInt("mealCount", 0)
+      val calories = call.data.optInt("calories", 0)
+      val goal = call.data.optInt("goal", 2000)
 
-      val prefs = getSharedPrefs()
-      val editor = prefs.edit()
-
-      editor.putInt("bodysync_meals_today", mealCount)
-      editor.putInt("bodysync_calories_today", calories)
-      editor.putInt("bodysync_calorie_goal", goal)
-      editor.putLong("bodysync_updated_at", System.currentTimeMillis())
-      editor.apply()
+      getSharedPrefs().edit()
+        .putInt("bodysync_meals_today", mealCount)
+        .putInt("bodysync_calories_today", calories)
+        .putInt("bodysync_calorie_goal", goal)
+        .putLong("bodysync_updated_at", System.currentTimeMillis())
+        .apply()
 
       call.resolve()
     } catch (error: Exception) {
@@ -118,16 +112,14 @@ class HealthSyncPlugin : Plugin() {
   @PluginMethod
   fun syncWorkoutData(call: PluginCall) {
     try {
-      val exists = call.getBoolean("exists", false)
-      val completed = call.getBoolean("completed", false)
+      val exists = call.data.optBoolean("exists", false)
+      val completed = call.data.optBoolean("completed", false)
 
-      val prefs = getSharedPrefs()
-      val editor = prefs.edit()
-
-      editor.putBoolean("bodysync_workout_today", exists)
-      editor.putBoolean("bodysync_workout_completed", completed)
-      editor.putLong("bodysync_updated_at", System.currentTimeMillis())
-      editor.apply()
+      getSharedPrefs().edit()
+        .putBoolean("bodysync_workout_today", exists)
+        .putBoolean("bodysync_workout_completed", completed)
+        .putLong("bodysync_updated_at", System.currentTimeMillis())
+        .apply()
 
       call.resolve()
     } catch (error: Exception) {
@@ -138,16 +130,14 @@ class HealthSyncPlugin : Plugin() {
   @PluginMethod
   fun syncStepData(call: PluginCall) {
     try {
-      val steps = call.getInt("steps", 0)
-      val goal = call.getInt("goal", 10000)
+      val steps = call.data.optInt("steps", 0)
+      val goal = call.data.optInt("goal", 10000)
 
-      val prefs = getSharedPrefs()
-      val editor = prefs.edit()
-
-      editor.putInt("bodysync_steps_today", steps)
-      editor.putInt("bodysync_step_goal", goal)
-      editor.putLong("bodysync_updated_at", System.currentTimeMillis())
-      editor.apply()
+      getSharedPrefs().edit()
+        .putInt("bodysync_steps_today", steps)
+        .putInt("bodysync_step_goal", goal)
+        .putLong("bodysync_updated_at", System.currentTimeMillis())
+        .apply()
 
       call.resolve()
     } catch (error: Exception) {
@@ -158,12 +148,11 @@ class HealthSyncPlugin : Plugin() {
   @PluginMethod
   fun logWaterFromWidget(call: PluginCall) {
     try {
-      val amount = call.getInt("amount", 250)
+      val amount = call.data.optInt("amount", 250)
 
-      val prefs = getSharedPrefs()
-      val editor = prefs.edit()
-      editor.putInt("bodysync_widget_log_water", amount)
-      editor.apply()
+      getSharedPrefs().edit()
+        .putInt("bodysync_widget_log_water", amount)
+        .apply()
 
       call.resolve()
     } catch (error: Exception) {

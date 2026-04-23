@@ -73,18 +73,9 @@ class HealthWidget : GlanceAppWidget() {
           modifier = GlanceModifier.size(20.dp)
         )
         Spacer(GlanceModifier.padding(horizontal = 6.dp))
-        Column(modifier = GlanceModifier.weight(1f)) {
-          Text("Water", style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color.Gray)))
+        Column {
+          Text("Water  $waterPct%", style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color.Gray)))
           Text("$waterToday / $waterGoal ml", style = TextStyle(fontSize = 12.sp, color = ColorProvider(Color.Black)))
-        }
-        Box(
-          modifier = GlanceModifier
-            .weight(0.5f)
-            .background(Color(0xFFE3F2FD))
-            .padding(3.dp),
-          contentAlignment = Alignment.Center
-        ) {
-          Text("$waterPct%", style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color(0xFF1976D2))))
         }
       }
 
@@ -146,18 +137,9 @@ class HealthWidget : GlanceAppWidget() {
           modifier = GlanceModifier.size(20.dp)
         )
         Spacer(GlanceModifier.padding(horizontal = 6.dp))
-        Column(modifier = GlanceModifier.weight(1f)) {
-          Text("Steps", style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color.Gray)))
+        Column {
+          Text("Steps  $stepsPct%", style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color.Gray)))
           Text("$stepsToday / $stepGoal", style = TextStyle(fontSize = 12.sp, color = ColorProvider(Color.Black)))
-        }
-        Box(
-          modifier = GlanceModifier
-            .weight(0.5f)
-            .background(Color(0xFFF3E5F5))
-            .padding(3.dp),
-          contentAlignment = Alignment.Center
-        ) {
-          Text("$stepsPct%", style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color(0xFF7B1FA2))))
         }
       }
 
