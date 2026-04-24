@@ -1,3 +1,7 @@
+plugins {
+    id 'org.jetbrains.kotlin.plugin.compose'
+}
+
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 
@@ -33,6 +37,10 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+    }
+
+    buildFeatures {
+        compose true
     }
 }
 

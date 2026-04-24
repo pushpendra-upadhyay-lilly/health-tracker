@@ -38,7 +38,7 @@ export const healthSync = {
 
   async logWaterFromWidget(amount: number) {
     try {
-      await HealthSync.logWaterFromWidget(amount)
+      await HealthSync.logWaterFromWidget({ amount })
     } catch (error) {
       console.error('Failed to log water from widget:', error)
     }
