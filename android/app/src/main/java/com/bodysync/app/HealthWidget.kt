@@ -123,7 +123,7 @@ class HealthWidget : GlanceAppWidget() {
             modifier = GlanceModifier
                 .fillMaxSize()
                 .background(BgMain)
-                .cornerRadius(16.dp)
+                .cornerRadius(12.dp)
                 .padding(8.dp)
         ) {
             // Header
@@ -216,7 +216,7 @@ class HealthWidget : GlanceAppWidget() {
                     modifier = GlanceModifier
                         .defaultWeight()
                         .background(ColWater)
-                        .cornerRadius(12.dp)
+                        .cornerRadius(8.dp)
                         .padding(vertical = 8.dp)
                         .clickable(actionRunCallback<OpenAppCallback>(
                             actionParametersOf(OpenAppCallback.ActionKey to "nutrition")
@@ -237,7 +237,7 @@ class HealthWidget : GlanceAppWidget() {
                     modifier = GlanceModifier
                         .defaultWeight()
                         .background(ColMeals)
-                        .cornerRadius(12.dp)
+                        .cornerRadius(8.dp)
                         .padding(vertical = 8.dp)
                         .clickable(actionRunCallback<OpenAppCallback>(
                             actionParametersOf(OpenAppCallback.ActionKey to "nutrition_log_meal")
