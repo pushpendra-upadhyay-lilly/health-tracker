@@ -12,6 +12,7 @@ import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.updateAll
 import androidx.glance.Image
@@ -119,7 +120,8 @@ class HealthWidget : GlanceAppWidget() {
             modifier = GlanceModifier
                 .fillMaxSize()
                 .background(BgMain)
-                .padding(6.dp)
+                .cornerRadius(16.dp)
+                .padding(8.dp)
         ) {
             // Header
             Row(
@@ -201,11 +203,14 @@ class HealthWidget : GlanceAppWidget() {
                 }
             }
 
+            Spacer(modifier = GlanceModifier.height(6.dp))
+
             // Button
             Box(
                 modifier = GlanceModifier
                     .fillMaxWidth()
                     .background(if (justLogged) Color(0xFF16A34A) else Color(0xFF1D4ED8))
+                    .cornerRadius(12.dp)
                     .padding(vertical = 8.dp)
                     .clickable(actionRunCallback<LogWaterCallback>()),
                 contentAlignment = Alignment.Center
