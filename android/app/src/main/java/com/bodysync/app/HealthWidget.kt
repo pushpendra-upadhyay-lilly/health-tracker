@@ -16,6 +16,8 @@ import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.updateAll
 import androidx.glance.Image
 import androidx.glance.ImageProvider
+import androidx.glance.LocalSize
+import androidx.glance.appwidget.SizeMode
 import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
@@ -62,6 +64,8 @@ class LogWaterCallback : ActionCallback {
 }
 
 class HealthWidget : GlanceAppWidget() {
+
+    override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val prefs = context.getSharedPreferences("com.bodysync.app.health", Context.MODE_PRIVATE)
@@ -113,6 +117,8 @@ class HealthWidget : GlanceAppWidget() {
             else          -> Color(0xFF555555)
         }
 
+        val isWide = LocalSize.current.width >= 200.dp
+
         Column(
             modifier = GlanceModifier
                 .fillMaxSize()
@@ -159,49 +165,81 @@ class HealthWidget : GlanceAppWidget() {
                     .background(BgCard)
                     .padding(horizontal = 10.dp, vertical = 12.dp)
             ) {
-                // Row 1: Water | Steps
-                Row(
-                    modifier = GlanceModifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                if (isWide) {
+                    // 2×2 grid
+                    Row(
+                        modifier = GlanceModifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Section(
+                            modifier = GlanceModifier.defaultWeight(),
+                            iconRes  = R.drawable.ic_water,
+                            label    = "${fmt(waterToday)}/${fmt(waterGoal)} ml",
+                            pct      = "$waterPct%",
+                            color    = ColWater
+                        )
+                        VSeparator()
+                        Section(
+                            modifier = GlanceModifier.defaultWeight(),
+                            iconRes  = R.drawable.ic_steps,
+                            label    = "${fmt(steps)}/${fmt(stepGoal)}",
+                            pct      = "$stepPct%",
+                            color    = ColSteps
+                        )
+                    }
+                    HSeparator()
+                    Row(
+                        modifier = GlanceModifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Section(
+                            modifier = GlanceModifier.defaultWeight(),
+                            iconRes  = R.drawable.ic_meals,
+                            label    = "${fmt(calories)}/${fmt(calorieGoal)} kcal",
+                            pct      = "$caloriePct%",
+                            color    = ColMeals
+                        )
+                        VSeparator()
+                        Section(
+                            modifier = GlanceModifier.defaultWeight(),
+                            iconRes  = R.drawable.ic_workout,
+                            label    = workoutLabel,
+                            pct      = "$mealCount meals",
+                            color    = workoutColor
+                        )
+                    }
+                } else {
+                    // 4×1 stacked column
                     Section(
-                        modifier = GlanceModifier.defaultWeight(),
+                        modifier = GlanceModifier.fillMaxWidth(),
                         iconRes  = R.drawable.ic_water,
                         label    = "${fmt(waterToday)}/${fmt(waterGoal)} ml",
                         pct      = "$waterPct%",
                         color    = ColWater
                     )
-                    VSeparator()
+                    HSeparator()
                     Section(
-                        modifier = GlanceModifier.defaultWeight(),
+                        modifier = GlanceModifier.fillMaxWidth(),
                         iconRes  = R.drawable.ic_steps,
                         label    = "${fmt(steps)}/${fmt(stepGoal)}",
                         pct      = "$stepPct%",
                         color    = ColSteps
                     )
-                }
-
-                HSeparator()
-
-                // Row 2: Meals | Workout
-                Row(
-                    modifier = GlanceModifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                    HSeparator()
                     Section(
-                        modifier = GlanceModifier.defaultWeight(),
+                        modifier = GlanceModifier.fillMaxWidth(),
                         iconRes  = R.drawable.ic_meals,
                         label    = "${fmt(calories)}/${fmt(calorieGoal)} kcal",
                         pct      = "$caloriePct%",
                         color    = ColMeals
                     )
-                    VSeparator()
+                    HSeparator()
                     Section(
-                        modifier  = GlanceModifier.defaultWeight(),
-                        iconRes   = R.drawable.ic_workout,
-                        label     = workoutLabel,
-                        pct       = "$mealCount meals",
-                        color     = workoutColor
+                        modifier = GlanceModifier.fillMaxWidth(),
+                        iconRes  = R.drawable.ic_workout,
+                        label    = workoutLabel,
+                        pct      = "$mealCount meals",
+                        color    = workoutColor
                     )
                 }
             }
