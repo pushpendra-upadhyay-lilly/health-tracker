@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Loader2, Plus, Search, Sparkles } from 'lucide-react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { v4 as uuid } from 'uuid'
@@ -25,7 +25,17 @@ interface AiForm {
   fat: string
 }
 
-export default function LogMealModal({ isOpen, onClose, defaultMealType }: { isOpen: boolean; onClose: () => void; defaultMealType?: MealType }) {
+export default function LogMealModal({
+  isOpen,
+  onClose,
+  defaultMealType,
+  editMeal,
+}: {
+  isOpen: boolean
+  onClose: () => void
+  defaultMealType?: MealType
+  editMeal?: MealLog | null
+}) {
   const customFoods = useLiveQuery(() => db.customFoods.orderBy('createdAt').reverse().toArray(), []) ?? []
   const todayMeals = useTodayMeals()
 
@@ -36,6 +46,19 @@ export default function LogMealModal({ isOpen, onClose, defaultMealType }: { isO
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
   const [aiForm, setAiForm] = useState<AiForm | null>(null)
+
+  useEffect(() => {
+    if (isOpen && editMeal) {
+      setMealType(editMeal.mealType)
+      setAiForm({
+        name: editMeal.name,
+        calories: String(editMeal.calories),
+        protein: String(editMeal.protein),
+        carbs: String(editMeal.carbs),
+        fat: String(editMeal.fat),
+      })
+    }
+  }, [isOpen, editMeal])
 
   const filteredCustomFoods = useMemo(() => {
     if (!foodSearch) return customFoods
@@ -82,16 +105,20 @@ export default function LogMealModal({ isOpen, onClose, defaultMealType }: { isO
     const fat = parseFloat(aiForm.fat) || 0
     const now = new Date().toISOString()
 
-    await db.mealLogs.put({
-      id: uuid(),
-      date: getTodayString(),
-      mealType,
-      name, calories, protein, carbs, fat,
-      createdAt: now,
-    })
-    const existing = await db.customFoods.where('name').equals(name).first()
-    if (!existing) {
-      await db.customFoods.put({ id: uuid(), name, calories, protein, carbs, fat, createdAt: now })
+    if (editMeal) {
+      await db.mealLogs.update(editMeal.id, { mealType, name, calories, protein, carbs, fat })
+    } else {
+      await db.mealLogs.put({
+        id: uuid(),
+        date: getTodayString(),
+        mealType,
+        name, calories, protein, carbs, fat,
+        createdAt: now,
+      })
+      const existing = await db.customFoods.where('name').equals(name).first()
+      if (!existing) {
+        await db.customFoods.put({ id: uuid(), name, calories, protein, carbs, fat, createdAt: now })
+      }
     }
     await syncMealData()
     resetModal()
@@ -129,7 +156,7 @@ export default function LogMealModal({ isOpen, onClose, defaultMealType }: { isO
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={resetModal} title="Log Meal" fullHeight>
+    <Modal isOpen={isOpen} onClose={resetModal} title={editMeal ? 'Edit Meal' : 'Log Meal'} fullHeight>
       <div className="space-y-5">
 
         {/* Meal Type */}
@@ -222,14 +249,15 @@ export default function LogMealModal({ isOpen, onClose, defaultMealType }: { isO
                   onChange={(e) => setAiForm((f) => f && ({ ...f, fat: e.target.value }))}
                 />
               </div>
-              <Button fullWidth size="lg" onClick={handleAddAiMeal} disabled={!aiForm.calories}>
-                <Plus size={15} /> Add Meal
+              <Button fullWidth size="lg" onClick={handleAddAiMeal} disabled={!aiForm?.calories}>
+                <Plus size={15} /> {editMeal ? 'Save Changes' : 'Add Meal'}
               </Button>
             </div>
           )}
         </div>
 
         {/* ── My Foods ── */}
+        {!editMeal && (
         <div className="space-y-3">
           <p className="text-xs font-semibold text-[#555555] uppercase tracking-wider">My Foods</p>
 
@@ -268,6 +296,7 @@ export default function LogMealModal({ isOpen, onClose, defaultMealType }: { isO
             )}
           </div>
         </div>
+        )}
 
       </div>
     </Modal>

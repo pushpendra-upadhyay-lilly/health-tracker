@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { db, getSettings } from '../db'
 import { getTodayString } from '../utils/dateHelpers'
@@ -10,11 +11,22 @@ export function useWidgetSync() {
   const addWaterRef = useRef(addWater)
   addWaterRef.current = addWater
 
+  const navigate = useNavigate()
+  const navigateRef = useRef(navigate)
+  navigateRef.current = navigate
+
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return
 
     const sync = async () => {
       if (document.visibilityState !== 'visible') return
+
+      const action = await healthSync.getWidgetAction()
+      if (action === 'nutrition') {
+        navigateRef.current('/nutrition')
+      } else if (action === 'nutrition_log_meal') {
+        navigateRef.current('/nutrition', { state: { openLogMeal: true } })
+      }
 
       const today = getTodayString()
       const [waterLog, meals, workout, settings] = await Promise.all([

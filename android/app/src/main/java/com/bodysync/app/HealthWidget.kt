@@ -1,13 +1,17 @@
 package com.bodysync.app
 
 import android.content.Context
+import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.Image
+import androidx.glance.ImageProvider
 import androidx.glance.action.ActionParameters
+import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.action.ActionCallback
@@ -15,12 +19,6 @@ import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.updateAll
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import androidx.glance.Image
-import androidx.glance.ImageProvider
 import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
@@ -46,28 +44,26 @@ private val ColWater = Color(0xFF3B82F6)
 private val ColSteps = Color(0xFF8B5CF6)
 private val ColMeals = Color(0xFFF97316)
 
-class LogWaterCallback : ActionCallback {
+class OpenAppCallback : ActionCallback {
+    companion object {
+        val ActionKey = ActionParameters.Key<String>("widget_action")
+    }
+
     override suspend fun onAction(
         context: Context,
         glanceId: GlanceId,
         parameters: ActionParameters
     ) {
-        val prefs = context.getSharedPreferences("com.bodysync.app.health", Context.MODE_PRIVATE)
-        val current = prefs.getInt("bodysync_water_today", 0)
-        val pending = prefs.getInt("bodysync_widget_water_pending", 0)
-        prefs.edit()
-            .putInt("bodysync_water_today", current + 250)
-            .putInt("bodysync_widget_water_pending", pending + 250)
-            .putLong("bodysync_updated_at", System.currentTimeMillis())
-            .putBoolean("bodysync_just_logged", true)
+        val action = parameters[ActionKey] ?: return
+        context.getSharedPreferences("com.bodysync.app.health", Context.MODE_PRIVATE)
+            .edit()
+            .putString("bodysync_widget_action", action)
             .apply()
-
-        CoroutineScope(Dispatchers.Main).launch {
-            HealthWidget().updateAll(context)
-            delay(2000)
-            prefs.edit().putBoolean("bodysync_just_logged", false).apply()
-            HealthWidget().updateAll(context)
-        }
+        context.startActivity(
+            Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+        )
     }
 }
 
@@ -85,7 +81,6 @@ class HealthWidget : GlanceAppWidget() {
         val workoutDone   = prefs.getBoolean("bodysync_workout_completed", false)
         val steps         = prefs.getInt("bodysync_steps_today", 0)
         val stepGoal      = prefs.getInt("bodysync_step_goal",  10000)
-        val justLogged    = prefs.getBoolean("bodysync_just_logged", false)
 
         provideContent {
             Content(
@@ -97,8 +92,7 @@ class HealthWidget : GlanceAppWidget() {
                 workoutExists = workoutExists,
                 workoutDone   = workoutDone,
                 steps         = steps,
-                stepGoal      = stepGoal,
-                justLogged    = justLogged
+                stepGoal      = stepGoal
             )
         }
     }
@@ -108,8 +102,7 @@ class HealthWidget : GlanceAppWidget() {
         waterToday: Int, waterGoal: Int,
         mealCount: Int, calories: Int, calorieGoal: Int,
         workoutExists: Boolean, workoutDone: Boolean,
-        steps: Int, stepGoal: Int,
-        justLogged: Boolean
+        steps: Int, stepGoal: Int
     ) {
         val waterPct   = pct(waterToday, waterGoal)
         val caloriePct = pct(calories, calorieGoal)
@@ -167,9 +160,7 @@ class HealthWidget : GlanceAppWidget() {
             Spacer(modifier = GlanceModifier.height(8.dp))
 
             // Sections
-            Column(
-                modifier = GlanceModifier.fillMaxWidth()
-            ) {
+            Column(modifier = GlanceModifier.fillMaxWidth()) {
                 Row(
                     modifier = GlanceModifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -215,29 +206,56 @@ class HealthWidget : GlanceAppWidget() {
 
             Spacer(modifier = GlanceModifier.height(6.dp))
 
-            // Button
-            Box(
-                modifier = GlanceModifier
-                    .fillMaxWidth()
-                    .background(if (justLogged) Color(0xFF16A34A) else Color(0xFF1D4ED8))
-                    .cornerRadius(12.dp)
-                    .padding(vertical = 8.dp)
-                    .clickable(actionRunCallback<LogWaterCallback>()),
-                contentAlignment = Alignment.Center
+            // Buttons
+            Row(
+                modifier = GlanceModifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    if (justLogged) "Logged ✓" else "Drank 1 glass",
-                    style = TextStyle(
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = ColorProvider(TxtPri)
+                Box(
+                    modifier = GlanceModifier
+                        .defaultWeight()
+                        .background(ColWater)
+                        .cornerRadius(12.dp)
+                        .padding(vertical = 8.dp)
+                        .clickable(actionRunCallback<OpenAppCallback>(
+                            actionParametersOf(OpenAppCallback.ActionKey to "nutrition")
+                        )),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "Log Water",
+                        style = TextStyle(
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ColorProvider(TxtPri)
+                        )
                     )
-                )
+                }
+                Spacer(modifier = GlanceModifier.width(6.dp))
+                Box(
+                    modifier = GlanceModifier
+                        .defaultWeight()
+                        .background(ColMeals)
+                        .cornerRadius(12.dp)
+                        .padding(vertical = 8.dp)
+                        .clickable(actionRunCallback<OpenAppCallback>(
+                            actionParametersOf(OpenAppCallback.ActionKey to "nutrition_log_meal")
+                        )),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "Log Meal",
+                        style = TextStyle(
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ColorProvider(TxtPri)
+                        )
+                    )
+                }
             }
         }
     }
 
-    // Icon  Label  [Pct%]  — all on one horizontal line
     @Composable
     private fun Section(
         modifier: GlanceModifier,

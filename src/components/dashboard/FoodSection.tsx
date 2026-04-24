@@ -124,11 +124,15 @@ function FoodIcon({ percentage }: { percentage: number }) {
   )
 }
 
-export default function FoodSection() {
+export default function FoodSection({ autoOpenModal }: { autoOpenModal?: boolean }) {
   const todayMeals = useTodayMeals()
   const activePlan = useActivePlan()
   const [showModal, setShowModal] = useState(false)
   const [justLogged, setJustLogged] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (autoOpenModal) setShowModal(true)
+  }, [autoOpenModal])
 
   const currentMealType = getCurrentMealType()
 

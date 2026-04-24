@@ -44,6 +44,15 @@ export const healthSync = {
     }
   },
 
+  async getWidgetAction(): Promise<string> {
+    try {
+      const { action } = await HealthSync.getWidgetAction()
+      return action
+    } catch {
+      return ''
+    }
+  },
+
   async getPendingWidgetWater(): Promise<number> {
     try {
       const { amount } = await HealthSync.getPendingWidgetWater()

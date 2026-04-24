@@ -237,6 +237,20 @@ class HealthSyncPlugin : Plugin() {
   }
 
   @PluginMethod
+  fun getWidgetAction(call: PluginCall) {
+    try {
+      val prefs = getSharedPrefs()
+      val action = prefs.getString("bodysync_widget_action", "") ?: ""
+      prefs.edit().remove("bodysync_widget_action").apply()
+      val result = JSObject()
+      result.put("action", action)
+      call.resolve(result)
+    } catch (error: Exception) {
+      call.reject("Failed to get widget action: ${error.message}", error)
+    }
+  }
+
+  @PluginMethod
   fun getPendingWidgetWater(call: PluginCall) {
     try {
       val prefs = getSharedPrefs()

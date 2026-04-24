@@ -39,6 +39,8 @@ function PageBoundary({ children }: { children: React.ReactNode }) {
 }
 
 function AppRoutes() {
+  useWidgetSync()
+
   // Use a tuple: [isLoaded, settings]
   // useLiveQuery returns undefined only while the async query is in-flight
   const result = useLiveQuery(
@@ -93,8 +95,6 @@ export default function App() {
   useEffect(() => {
     if (navigator.storage?.persist) navigator.storage.persist()
   }, [])
-
-  useWidgetSync()
 
   return (
     <BrowserRouter>

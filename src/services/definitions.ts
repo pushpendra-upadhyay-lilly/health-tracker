@@ -13,6 +13,7 @@ export interface HealthSyncPlugin {
   syncStepData(options: { steps: number; goal: number }): Promise<void>
   logWaterFromWidget(options: { amount: number }): Promise<void>
   getPendingWidgetWater(): Promise<{ amount: number }>
+  getWidgetAction(): Promise<{ action: string }>
   checkPermissions(): Promise<ActivityRecognitionPermission>
   requestPermissions(): Promise<ActivityRecognitionPermission>
   getStepsFromSensor(): Promise<{ steps: number }>
