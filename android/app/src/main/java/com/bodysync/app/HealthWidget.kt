@@ -143,7 +143,8 @@ class HealthWidget : GlanceAppWidget() {
                 Box(
                     modifier = GlanceModifier
                         .background(Color(0xFF1E3A5F))
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .cornerRadius(4.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -151,7 +152,7 @@ class HealthWidget : GlanceAppWidget() {
                         style = TextStyle(
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Medium,
-                            color = ColorProvider(ColWater)
+                            color = ColorProvider(ColWater),
                         )
                     )
                 }
@@ -204,7 +205,7 @@ class HealthWidget : GlanceAppWidget() {
                 }
             }
 
-            Spacer(modifier = GlanceModifier.height(6.dp))
+            Spacer(modifier = GlanceModifier.height(8.dp))
 
             // Buttons
             Row(
