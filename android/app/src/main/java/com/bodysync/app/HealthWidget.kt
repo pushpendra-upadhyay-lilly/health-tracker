@@ -14,6 +14,8 @@ import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.updateAll
+import androidx.glance.Image
+import androidx.glance.ImageProvider
 import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
@@ -164,7 +166,7 @@ class HealthWidget : GlanceAppWidget() {
                 ) {
                     Section(
                         modifier = GlanceModifier.defaultWeight(),
-                        icon     = "💧",
+                        iconRes  = R.drawable.ic_water,
                         label    = "${fmt(waterToday)}/${fmt(waterGoal)} ml",
                         pct      = "$waterPct%",
                         color    = ColWater
@@ -172,7 +174,7 @@ class HealthWidget : GlanceAppWidget() {
                     VSeparator()
                     Section(
                         modifier = GlanceModifier.defaultWeight(),
-                        icon     = "🏃",
+                        iconRes  = R.drawable.ic_steps,
                         label    = "${fmt(steps)}/${fmt(stepGoal)}",
                         pct      = "$stepPct%",
                         color    = ColSteps
@@ -188,7 +190,7 @@ class HealthWidget : GlanceAppWidget() {
                 ) {
                     Section(
                         modifier = GlanceModifier.defaultWeight(),
-                        icon     = "🍽",
+                        iconRes  = R.drawable.ic_meals,
                         label    = "${fmt(calories)}/${fmt(calorieGoal)} kcal",
                         pct      = "$caloriePct%",
                         color    = ColMeals
@@ -196,15 +198,13 @@ class HealthWidget : GlanceAppWidget() {
                     VSeparator()
                     Section(
                         modifier  = GlanceModifier.defaultWeight(),
-                        icon      = "💪",
+                        iconRes   = R.drawable.ic_workout,
                         label     = workoutLabel,
                         pct       = "$mealCount meals",
                         color     = workoutColor
                     )
                 }
             }
-
-            Spacer(modifier = GlanceModifier.defaultWeight())
 
             // Button
             Box(
@@ -231,7 +231,7 @@ class HealthWidget : GlanceAppWidget() {
     @Composable
     private fun Section(
         modifier: GlanceModifier,
-        icon: String,
+        iconRes: Int,
         label: String,
         pct: String,
         color: Color
@@ -240,7 +240,11 @@ class HealthWidget : GlanceAppWidget() {
             modifier = modifier.padding(horizontal = 6.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(icon, style = TextStyle(fontSize = 14.sp))
+            Image(
+                provider = ImageProvider(iconRes),
+                contentDescription = null,
+                modifier = GlanceModifier.width(16.dp).height(16.dp)
+            )
             Spacer(modifier = GlanceModifier.width(6.dp))
             Text(
                 label,
