@@ -138,8 +138,11 @@ export default function Settings() {
   }
 
   const handleExport = async () => {
+    setImportStatus('Exporting…')
     try {
       await exportData()
+      setImportStatus('Saved to Downloads folder!')
+      setTimeout(() => setImportStatus(null), 4000)
     } catch (e) {
       setImportStatus(`Error: ${e instanceof Error ? e.message : 'Export failed'}`)
       setTimeout(() => setImportStatus(null), 4000)

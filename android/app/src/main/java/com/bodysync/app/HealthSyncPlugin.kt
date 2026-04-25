@@ -136,6 +136,7 @@ class HealthSyncPlugin : Plugin() {
   fun saveToDownloads(call: PluginCall) {
     val text     = call.data.optString("text",     "") ?: ""
     val filename = call.data.optString("filename", "backup.json") ?: "backup.json"
+    Log.d("HealthSync", "saveToDownloads: filename=$filename textLen=${text.length} api=${Build.VERSION.SDK_INT}")
     CoroutineScope(Dispatchers.IO).launch {
       try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -147,6 +148,7 @@ class HealthSyncPlugin : Plugin() {
           val resolver = context.contentResolver
           val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
             ?: throw Exception("Could not create file in Downloads")
+          Log.d("HealthSync", "saveToDownloads: inserted uri=$uri")
           resolver.openOutputStream(uri)?.use { it.write(text.toByteArray(Charsets.UTF_8)) }
           values.clear()
           values.put(MediaStore.Downloads.IS_PENDING, 0)
@@ -155,8 +157,10 @@ class HealthSyncPlugin : Plugin() {
           val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
           File(dir, filename).writeText(text, Charsets.UTF_8)
         }
+        Log.d("HealthSync", "saveToDownloads: success $filename")
         call.resolve()
       } catch (e: Exception) {
+        Log.e("HealthSync", "saveToDownloads: failed ${e.message}", e)
         call.reject("saveToDownloads failed: ${e.message}", e)
       }
     }
