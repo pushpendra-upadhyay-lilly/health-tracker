@@ -25,6 +25,7 @@ export default function Settings() {
   const { requestPermission, checkPermission, initReminders, stopAllReminders } = useNotifications()
   const [notifGranted, setNotifGranted] = useState(false)
   const [hcGranted, setHcGranted] = useState(false)
+  const [hcError, setHcError] = useState<string | null>(null)
   const isAndroid = Capacitor.getPlatform() === 'android'
 
   useEffect(() => {
@@ -120,6 +121,12 @@ export default function Settings() {
   }
 
   const handleHCConnect = async () => {
+    setHcError(null)
+    const available = await healthSync.isHealthConnectAvailable()
+    if (!available) {
+      setHcError('Health Connect is not available on this device. Install it from the Play Store.')
+      return
+    }
     const granted = await healthSync.requestHealthPermissions()
     setHcGranted(granted)
     if (granted && !settings?.hcBackfillDone) {
@@ -280,6 +287,9 @@ export default function Settings() {
                 )}
               </div>
             </Card>
+            {hcError && (
+              <p className="text-xs text-[#FF4757] px-1 mt-1">{hcError}</p>
+            )}
           </section>
         )}
 

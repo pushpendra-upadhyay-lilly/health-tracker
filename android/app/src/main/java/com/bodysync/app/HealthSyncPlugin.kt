@@ -268,6 +268,8 @@ class HealthSyncPlugin : Plugin() {
     HealthPermission.getReadPermission(ExerciseSessionRecord::class),
   )
 
+  private val hcPermissionContract = PermissionController.createRequestPermissionResultContract()
+
   private fun hcClient() = HealthConnectClient.getOrCreate(context)
 
   @PluginMethod
@@ -296,9 +298,16 @@ class HealthSyncPlugin : Plugin() {
 
   @PluginMethod
   fun requestHealthPermissions(call: PluginCall) {
-    val intent = PermissionController.createRequestPermissionResultContract()
-      .createIntent(activity, hcPermissions)
-    startActivityForResult(call, intent, "permissionCallback")
+    if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) {
+      call.reject("Health Connect is not available on this device")
+      return
+    }
+    try {
+      val intent = hcPermissionContract.createIntent(context, hcPermissions)
+      startActivityForResult(call, intent, "permissionCallback")
+    } catch (e: Exception) {
+      call.reject("Failed to launch Health Connect: ${e.message}", e)
+    }
   }
 
   @ActivityCallback

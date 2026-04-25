@@ -120,7 +120,8 @@ export const healthSync = {
     try {
       const { granted } = await HealthSync.requestHealthPermissions()
       return granted
-    } catch {
+    } catch (error: any) {
+      console.error('HC requestHealthPermissions failed:', error?.message ?? error)
       return false
     }
   },
