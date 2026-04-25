@@ -162,7 +162,7 @@ class HealthSyncPlugin : Plugin() {
           dao().upsert(existing.copy(pendingWaterMl = 0))
         }
         val result = JSObject()
-        result.put("amount", pending as Int)
+        result.put("amount", pending)
         call.resolve(result)
       } catch (e: Exception) {
         call.reject("Failed to get pending widget water: ${e.message}", e)
@@ -298,6 +298,7 @@ class HealthSyncPlugin : Plugin() {
   @PluginMethod
   fun isHealthConnectAvailable(call: PluginCall) {
     val status = HealthConnectClient.getSdkStatus(context)
+    Log.d("HealthSync", "isHealthConnectAvailable: status=$status (AVAILABLE=${HealthConnectClient.SDK_AVAILABLE})")
     val result = JSObject()
     result.put("available", status == HealthConnectClient.SDK_AVAILABLE)
     call.resolve(result)
