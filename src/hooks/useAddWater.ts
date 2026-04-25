@@ -31,9 +31,6 @@ export function useAddWater() {
       }
       await db.waterLogs.put(updatedLog)
     }
-    // Sync to widget
-    const totalMl = updatedLog.entries.reduce((sum, e) => sum + e.amount, 0)
-    await healthSync.syncWaterData(totalMl, settings?.waterGoal ?? 3000)
     // Sync to Health Connect
     healthSync.writeHydrationRecord(entry.amount, entry.time)
   }

@@ -1,18 +1,16 @@
 package com.bodysync.app
 
-import android.app.PendingIntent
-import android.appwidget.AppWidgetManager
-import android.content.ComponentName
-import android.util.Log
+import android.content.ContentValues
 import android.content.Context
-import android.content.Intent
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import android.util.Log
 import androidx.activity.result.ActivityResultLauncher
-import androidx.glance.appwidget.updateAll
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
@@ -31,11 +29,9 @@ import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import com.getcapacitor.annotation.Permission
-import android.content.ContentValues
-import android.provider.MediaStore
-import android.os.Environment
 import java.io.File
 import java.time.Instant
+import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -54,17 +50,7 @@ import kotlinx.coroutines.launch
 )
 class HealthSyncPlugin : Plugin() {
 
-  private fun dao() = HealthDatabase.getInstance(context).dailyStatsDao()
-  private fun today() = HealthDatabase.todayString()
-
-  private fun refreshWidget() {
-    CoroutineScope(Dispatchers.Main).launch {
-      HealthWidget().updateAll(context)
-    }
-  }
-
-  private suspend fun getOrCreateToday(): DailyStats =
-    dao().getByDate(today()) ?: DailyStats(date = today())
+  private fun today() = LocalDate.now().toString()
 
   @PluginMethod
   override fun checkPermissions(call: PluginCall) {
@@ -86,106 +72,6 @@ class HealthSyncPlugin : Plugin() {
       return
     }
     super.requestPermissions(call)
-  }
-
-  @PluginMethod
-  fun syncWaterData(call: PluginCall) {
-    val waterMl = call.data.optInt("waterMl", 0)
-    val goal = call.data.optInt("goal", 3000)
-    CoroutineScope(Dispatchers.IO).launch {
-      try {
-        dao().upsert(getOrCreateToday().copy(waterMl = waterMl, waterGoalMl = goal))
-        refreshWidget()
-        call.resolve()
-      } catch (e: Exception) {
-        call.reject("Failed to sync water data: ${e.message}", e)
-      }
-    }
-  }
-
-  @PluginMethod
-  fun syncMealData(call: PluginCall) {
-    val mealCount = call.data.optInt("mealCount", 0)
-    val calories = call.data.optInt("calories", 0)
-    val goal = call.data.optInt("goal", 2000)
-    CoroutineScope(Dispatchers.IO).launch {
-      try {
-        dao().upsert(getOrCreateToday().copy(
-          mealCount = mealCount,
-          caloriesKcal = calories,
-          calorieGoal = goal,
-        ))
-        refreshWidget()
-        call.resolve()
-      } catch (e: Exception) {
-        call.reject("Failed to sync meal data: ${e.message}", e)
-      }
-    }
-  }
-
-  @PluginMethod
-  fun syncWorkoutData(call: PluginCall) {
-    val exists = call.data.optBoolean("exists", false)
-    val completed = call.data.optBoolean("completed", false)
-    CoroutineScope(Dispatchers.IO).launch {
-      try {
-        dao().upsert(getOrCreateToday().copy(
-          workoutExists = exists,
-          workoutCompleted = completed,
-        ))
-        refreshWidget()
-        call.resolve()
-      } catch (e: Exception) {
-        call.reject("Failed to sync workout data: ${e.message}", e)
-      }
-    }
-  }
-
-  @PluginMethod
-  fun syncStepData(call: PluginCall) {
-    val steps = call.data.optInt("steps", 0)
-    val goal = call.data.optInt("goal", 10000)
-    CoroutineScope(Dispatchers.IO).launch {
-      try {
-        dao().upsert(getOrCreateToday().copy(stepsToday = steps, stepGoal = goal))
-        refreshWidget()
-        call.resolve()
-      } catch (e: Exception) {
-        call.reject("Failed to sync step data: ${e.message}", e)
-      }
-    }
-  }
-
-  @PluginMethod
-  fun getPendingWidgetWater(call: PluginCall) {
-    CoroutineScope(Dispatchers.IO).launch {
-      try {
-        val existing = getOrCreateToday()
-        val pending = existing.pendingWaterMl
-        if (pending > 0) {
-          dao().upsert(existing.copy(pendingWaterMl = 0))
-        }
-        val result = JSObject()
-        result.put("amount", pending)
-        call.resolve(result)
-      } catch (e: Exception) {
-        call.reject("Failed to get pending widget water: ${e.message}", e)
-      }
-    }
-  }
-
-  @PluginMethod
-  fun getWidgetAction(call: PluginCall) {
-    try {
-      val prefs = context.getSharedPreferences("com.bodysync.app.health", Context.MODE_PRIVATE)
-      val action = prefs.getString("bodysync_widget_action", "") ?: ""
-      prefs.edit().remove("bodysync_widget_action").apply()
-      val result = JSObject()
-      result.put("action", action)
-      call.resolve(result)
-    } catch (e: Exception) {
-      call.reject("Failed to get widget action: ${e.message}", e)
-    }
   }
 
   @PluginMethod
@@ -246,22 +132,6 @@ class HealthSyncPlugin : Plugin() {
   }
 
   @PluginMethod
-  fun pinWidget(call: PluginCall) {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-      call.reject("Widget pinning requires Android 8.0 or above")
-      return
-    }
-    val appWidgetManager = AppWidgetManager.getInstance(context)
-    if (!appWidgetManager.isRequestPinAppWidgetSupported) {
-      call.reject("Your launcher does not support pinning widgets directly. Long-press your home screen and look for Widgets.")
-      return
-    }
-    val provider = ComponentName(context, HealthWidgetReceiver::class.java)
-    appWidgetManager.requestPinAppWidget(provider, null, null)
-    call.resolve()
-  }
-
-  @PluginMethod
   fun saveToDownloads(call: PluginCall) {
     val text     = call.data.optString("text",     "") ?: ""
     val filename = call.data.optString("filename", "backup.json") ?: "backup.json"
@@ -313,7 +183,6 @@ class HealthSyncPlugin : Plugin() {
       CoroutineScope(Dispatchers.IO).launch {
         try {
           val granted = hcClient().permissionController.getGrantedPermissions()
-          Log.d("HealthSync", "permissionCallback: granted=${granted.size}, all=${hcPermissions.all { it in granted }}")
           val res = JSObject()
           res.put("granted", hcPermissions.all { it in granted })
           call.resolve(res)
@@ -332,7 +201,6 @@ class HealthSyncPlugin : Plugin() {
   @PluginMethod
   fun isHealthConnectAvailable(call: PluginCall) {
     val status = HealthConnectClient.getSdkStatus(context)
-    Log.d("HealthSync", "isHealthConnectAvailable: status=$status (AVAILABLE=${HealthConnectClient.SDK_AVAILABLE})")
     val result = JSObject()
     result.put("available", status == HealthConnectClient.SDK_AVAILABLE)
     call.resolve(result)
@@ -356,19 +224,15 @@ class HealthSyncPlugin : Plugin() {
 
   @PluginMethod
   fun requestHealthPermissions(call: PluginCall) {
-    Log.d("HealthSync", "requestHealthPermissions: called")
     if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) {
-      Log.d("HealthSync", "requestHealthPermissions: HC not available")
       call.reject("Health Connect is not available on this device")
       return
     }
     try {
       pendingHcCall = call
-      Log.d("HealthSync", "requestHealthPermissions: launching via registerForActivityResult")
       requestHcPermissions.launch(hcPermissions)
-      Log.d("HealthSync", "requestHealthPermissions: launch() called")
     } catch (e: Exception) {
-      Log.e("HealthSync", "requestHealthPermissions: exception ${e.message}", e)
+      Log.e("HealthSync", "requestHealthPermissions failed: ${e.message}", e)
       pendingHcCall = null
       call.reject("Failed to launch Health Connect: ${e.message}", e)
     }

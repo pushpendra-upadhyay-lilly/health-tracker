@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Activity, Download, Upload, Trash2, Bell, ChevronRight, User, ClipboardList, Dumbbell, Bot, Eye, EyeOff, LayoutGrid } from 'lucide-react'
+import { Activity, Download, Upload, Trash2, Bell, ChevronRight, User, ClipboardList, Dumbbell, Bot, Eye, EyeOff } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { Dialog } from '@capacitor/dialog'
@@ -86,8 +86,6 @@ export default function Settings() {
       waterGoal: parseInt(waterGoal) || 3000,
       stepGoal: parseInt(stepGoal) || 10000,
     })
-    // Sync step goal to widget
-    await healthSync.syncStepData(0, parseInt(stepGoal) || 10000)
     // Auto-log a body metric entry whenever weight is saved
     if (parsed !== null) {
       const h = height ? parseFloat(height) : (settings?.height ?? null)
@@ -258,12 +256,6 @@ export default function Settings() {
               label="Exercise Library"
               sub="Browse 50+ exercises"
               onClick={() => navigate('/library')}
-            />
-            <SettingsRow
-              icon={<LayoutGrid size={16} className="text-[#3B82F6]" />}
-              label="Widgets"
-              sub="Add widgets to your home screen"
-              onClick={() => navigate('/widgets')}
             />
           </div>
         </section>

@@ -5,16 +5,9 @@ export interface ActivityRecognitionPermission {
 }
 
 export interface HealthSyncPlugin {
-  syncWaterData(options: { waterMl: number; goal: number }): Promise<void>
-  syncMealData(options: { mealCount: number; calories: number; goal: number }): Promise<void>
-  syncWorkoutData(options: { exists: boolean; completed?: boolean }): Promise<void>
-  syncStepData(options: { steps: number; goal: number }): Promise<void>
-  getPendingWidgetWater(): Promise<{ amount: number }>
-  getWidgetAction(): Promise<{ action: string }>
   checkPermissions(): Promise<ActivityRecognitionPermission>
   requestPermissions(): Promise<ActivityRecognitionPermission>
   getStepsFromSensor(): Promise<{ steps: number }>
-  pinWidget(): Promise<void>
   saveToDownloads(opts: { text: string; filename: string }): Promise<void>
   // Health Connect
   isHealthConnectAvailable(): Promise<{ available: boolean }>

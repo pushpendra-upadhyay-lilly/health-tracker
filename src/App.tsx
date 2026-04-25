@@ -6,8 +6,6 @@ import { ErrorBoundary } from './components/ui/ErrorBoundary'
 import FloatingTimer from './components/ui/FloatingTimer'
 import { TimerProvider } from './contexts/TimerContext'
 import { db } from './db'
-import { useWidgetSync } from './hooks/useWidgetSync'
-import { useRealtimeWidgetSync } from './hooks/useRealtimeWidgetSync'
 
 // Eagerly loaded — needed before onboarding check resolves
 import Onboarding from './pages/Onboarding'
@@ -23,7 +21,6 @@ const Progress    = lazy(() => import('./pages/Progress'))
 const Library     = lazy(() => import('./pages/Library'))
 const Settings    = lazy(() => import('./pages/Settings'))
 const AICoach     = lazy(() => import('./pages/AICoach'))
-const Widgets     = lazy(() => import('./pages/Widgets'))
 
 function PageLoader() {
   return (
@@ -40,11 +37,6 @@ function PageBoundary({ children }: { children: React.ReactNode }) {
 }
 
 function AppRoutes() {
-  useWidgetSync()
-  useRealtimeWidgetSync()
-
-  // Use a tuple: [isLoaded, settings]
-  // useLiveQuery returns undefined only while the async query is in-flight
   const result = useLiveQuery(
     async () => {
       const s = await db.settings.get('user')
@@ -84,7 +76,6 @@ function AppRoutes() {
             <Route path="/library" element={<PageBoundary><Library /></PageBoundary>} />
             <Route path="/settings" element={<PageBoundary><Settings /></PageBoundary>} />
             <Route path="/ai" element={<PageBoundary><AICoach /></PageBoundary>} />
-            <Route path="/widgets" element={<PageBoundary><Widgets /></PageBoundary>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         )}

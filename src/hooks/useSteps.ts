@@ -1,6 +1,5 @@
 import { Health } from '@capgo/capacitor-health'
 import { useEffect, useState } from 'react'
-import { getSettings } from '../db'
 import { healthSync } from '../services/healthSyncPlugin'
 
 export function useSteps() {
@@ -51,17 +50,12 @@ export function useSteps() {
     })
     const stepCount = result.samples[0]?.value ?? 0
     setSteps(stepCount)
-
-    const settings = await getSettings()
-    await healthSync.syncStepData(stepCount, settings.stepGoal)
   }
 
   async function fetchSensorSteps() {
     const sensorSteps = await healthSync.getStepsFromSensor()
     if (sensorSteps !== null) {
       setSteps(sensorSteps)
-      const settings = await getSettings()
-      await healthSync.syncStepData(sensorSteps, settings.stepGoal)
     }
   }
 

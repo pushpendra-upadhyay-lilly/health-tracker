@@ -138,9 +138,6 @@ export default function Workout() {
       startedAt: new Date().toISOString(),
     }
     await db.workoutLogs.put(log)
-
-    // Sync to widget
-    await healthSync.syncWorkoutData(true, false)
   }
 
   const toggleSet = async (exIdx: number, setIdx: number) => {
@@ -160,9 +157,6 @@ export default function Workout() {
     if (updated.completed) updated.completedAt = new Date().toISOString()
 
     await db.workoutLogs.put(updated)
-
-    // Sync to widget
-    await healthSync.syncWorkoutData(true, updated.completed)
 
     // Sync completed workout to Health Connect
     if (!todayWorkout.completed && updated.completed) {

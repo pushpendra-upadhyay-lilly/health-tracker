@@ -6,56 +6,6 @@ import type { MealLog, WorkoutLog } from '../db/types'
 const HealthSync = registerPlugin<HealthSyncPlugin>('HealthSync')
 
 export const healthSync = {
-  async syncWaterData(waterMl: number, goal: number) {
-    try {
-      await HealthSync.syncWaterData({ waterMl, goal })
-    } catch (error) {
-      console.error('Failed to sync water data:', error)
-    }
-  },
-
-  async syncMealData(mealCount: number, calories: number, goal: number) {
-    try {
-      await HealthSync.syncMealData({ mealCount, calories, goal })
-    } catch (error) {
-      console.error('Failed to sync meal data:', error)
-    }
-  },
-
-  async syncWorkoutData(exists: boolean, completed?: boolean) {
-    try {
-      await HealthSync.syncWorkoutData({ exists, completed })
-    } catch (error) {
-      console.error('Failed to sync workout data:', error)
-    }
-  },
-
-  async syncStepData(steps: number, goal: number) {
-    try {
-      await HealthSync.syncStepData({ steps, goal })
-    } catch (error) {
-      console.error('Failed to sync step data:', error)
-    }
-  },
-
-  async getWidgetAction(): Promise<string> {
-    try {
-      const { action } = await HealthSync.getWidgetAction()
-      return action
-    } catch {
-      return ''
-    }
-  },
-
-  async getPendingWidgetWater(): Promise<number> {
-    try {
-      const { amount } = await HealthSync.getPendingWidgetWater()
-      return amount
-    } catch {
-      return 0
-    }
-  },
-
   async checkActivityPermission(): Promise<string> {
     try {
       const { activityRecognition } = await HealthSync.checkPermissions()
@@ -81,15 +31,6 @@ export const healthSync = {
     } catch (error) {
       console.error('Step sensor not available:', error)
       return null
-    }
-  },
-
-  async pinWidget(): Promise<{ success: boolean; message?: string }> {
-    try {
-      await HealthSync.pinWidget()
-      return { success: true }
-    } catch (error: any) {
-      return { success: false, message: error?.message ?? 'Failed to pin widget' }
     }
   },
 
