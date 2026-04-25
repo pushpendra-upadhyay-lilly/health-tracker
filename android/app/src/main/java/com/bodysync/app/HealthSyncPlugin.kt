@@ -2,6 +2,7 @@ package com.bodysync.app
 
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -379,5 +380,54 @@ class HealthSyncPlugin : Plugin() {
         call.reject("deleteExerciseSession failed: ${e.message}", e)
       }
     }
+  }
+
+  // ─── Health Notification ──────────────────────────────────────────────────
+
+  private fun buildNotifIntent(call: PluginCall): Intent =
+    Intent(context, HealthNotificationService::class.java).apply {
+      putExtra(HealthNotificationService.EXTRA_CALORIES,    call.getInt("calories", 0))
+      putExtra(HealthNotificationService.EXTRA_CALORIE_GOAL, call.getInt("calorieGoal", 2000))
+      putExtra(HealthNotificationService.EXTRA_WATER_ML,    call.getInt("waterMl", 0))
+      putExtra(HealthNotificationService.EXTRA_WATER_GOAL,  call.getInt("waterGoal", 3000))
+      putExtra(HealthNotificationService.EXTRA_STEPS,       call.getInt("steps", 0))
+      putExtra(HealthNotificationService.EXTRA_STEP_GOAL,   call.getInt("stepGoal", 10000))
+    }
+
+  @PluginMethod
+  fun startHealthNotification(call: PluginCall) {
+    context.startForegroundService(buildNotifIntent(call))
+    call.resolve()
+  }
+
+  @PluginMethod
+  fun updateHealthNotification(call: PluginCall) {
+    context.startForegroundService(buildNotifIntent(call))
+    call.resolve()
+  }
+
+  @PluginMethod
+  fun stopHealthNotification(call: PluginCall) {
+    context.stopService(Intent(context, HealthNotificationService::class.java))
+    call.resolve()
+  }
+
+  @PluginMethod
+  fun getPendingWaterAdd(call: PluginCall) {
+    val prefs = context.getSharedPreferences("com.bodysync.app.health", Context.MODE_PRIVATE)
+    val pending = prefs.getInt("pending_water_ml", 0)
+    prefs.edit().putInt("pending_water_ml", 0).apply()
+    val result = JSObject()
+    result.put("pendingMl", pending)
+    call.resolve(result)
+  }
+
+  @PluginMethod
+  fun getIntentAction(call: PluginCall) {
+    val action = activity.intent?.getStringExtra("action") ?: ""
+    activity.intent?.removeExtra("action")
+    val result = JSObject()
+    result.put("action", action)
+    call.resolve(result)
   }
 }

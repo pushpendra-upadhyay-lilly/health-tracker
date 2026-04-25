@@ -13,6 +13,7 @@ import { chat } from '../../services/gemini'
 import { extractJson } from '../../utils/extractJson'
 import { MEAL_EMOJIS, MEAL_TYPES } from '../../data/constants'
 import { healthSync } from '../../services/healthSyncPlugin'
+import { syncNotificationStats } from '../../services/notificationStats'
 
 export { MEAL_EMOJIS, MEAL_TYPES }
 
@@ -85,6 +86,7 @@ export default function LogMealModal({
     }
     await db.mealLogs.put(meal)
     healthSync.writeNutritionRecord(meal)
+    syncNotificationStats()
     resetModal()
   }
 
@@ -116,6 +118,7 @@ export default function LogMealModal({
         await db.customFoods.put({ id: uuid(), name, calories, protein, carbs, fat, createdAt: now })
       }
     }
+    syncNotificationStats()
     resetModal()
   }
 

@@ -13,6 +13,7 @@ import { useTodayMeals } from '../hooks/useTodayMeals'
 import { useTodayWater } from '../hooks/useTodayWater'
 import { formatWater } from '../utils/calculations'
 import { healthSync } from '../services/healthSyncPlugin'
+import { syncNotificationStats } from '../services/notificationStats'
 import type { MealLog } from '../db/types'
 
 export default function Nutrition() {
@@ -27,6 +28,7 @@ export default function Nutrition() {
     const meal = await db.mealLogs.get(id)
     if (meal) healthSync.deleteNutritionRecord(meal.createdAt, meal.createdAt)
     await db.mealLogs.delete(id)
+    syncNotificationStats()
   }
 
   const deleteWaterEntry = async (index: number) => {
@@ -39,6 +41,7 @@ export default function Nutrition() {
     } else {
       await db.waterLogs.update(waterLog.id, { entries: newEntries })
     }
+    syncNotificationStats()
   }
 
   return (

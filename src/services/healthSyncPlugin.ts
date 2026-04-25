@@ -143,4 +143,53 @@ export const healthSync = {
       console.error('HC deleteExerciseSession failed:', error)
     }
   },
+
+  // ─── Health Notification ──────────────────────────────────────────────────
+
+  async startHealthNotification(opts: { calories: number; calorieGoal: number; waterMl: number; waterGoal: number; steps: number; stepGoal: number }): Promise<void> {
+    if (!Capacitor.isNativePlatform()) return
+    try {
+      await HealthSync.startHealthNotification(opts)
+    } catch (error) {
+      console.error('startHealthNotification failed:', error)
+    }
+  },
+
+  async updateHealthNotification(opts: { calories: number; calorieGoal: number; waterMl: number; waterGoal: number; steps: number; stepGoal: number }): Promise<void> {
+    if (!Capacitor.isNativePlatform()) return
+    try {
+      await HealthSync.updateHealthNotification(opts)
+    } catch (error) {
+      console.error('updateHealthNotification failed:', error)
+    }
+  },
+
+  async stopHealthNotification(): Promise<void> {
+    if (!Capacitor.isNativePlatform()) return
+    try {
+      await HealthSync.stopHealthNotification()
+    } catch (error) {
+      console.error('stopHealthNotification failed:', error)
+    }
+  },
+
+  async getPendingWaterAdd(): Promise<number> {
+    if (!Capacitor.isNativePlatform()) return 0
+    try {
+      const { pendingMl } = await HealthSync.getPendingWaterAdd()
+      return pendingMl
+    } catch {
+      return 0
+    }
+  },
+
+  async getIntentAction(): Promise<string> {
+    if (!Capacitor.isNativePlatform()) return ''
+    try {
+      const { action } = await HealthSync.getIntentAction()
+      return action
+    } catch {
+      return ''
+    }
+  },
 }

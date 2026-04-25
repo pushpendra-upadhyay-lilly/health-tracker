@@ -19,4 +19,10 @@ export interface HealthSyncPlugin {
   deleteHydrationRecord(opts: { startTime: string; endTime: string }): Promise<void>
   writeExerciseSession(opts: { title: string; startTime: string; endTime: string; exerciseType: string }): Promise<void>
   deleteExerciseSession(opts: { startTime: string; endTime: string }): Promise<void>
+  // Health Notification
+  startHealthNotification(opts: { calories: number; calorieGoal: number; waterMl: number; waterGoal: number; steps: number; stepGoal: number }): Promise<void>
+  updateHealthNotification(opts: { calories: number; calorieGoal: number; waterMl: number; waterGoal: number; steps: number; stepGoal: number }): Promise<void>
+  stopHealthNotification(): Promise<void>
+  getPendingWaterAdd(): Promise<{ pendingMl: number }>
+  getIntentAction(): Promise<{ action: string }>
 }
