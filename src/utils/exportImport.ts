@@ -1,5 +1,5 @@
 import { Capacitor } from '@capacitor/core'
-import { Share } from '@capacitor/share'
+import { healthSync } from '../services/healthSyncPlugin'
 import { db } from '../db'
 import type { Plan, WorkoutLog, WaterLog, MealLog, BodyMetric, Exercise, UserSettings, CustomFood } from '../db/types'
 
@@ -18,7 +18,7 @@ interface ExportData {
 
 async function shareOrDownload(json: string, filename: string): Promise<void> {
   if (Capacitor.isNativePlatform()) {
-    await Share.share({ title: filename, text: json, dialogTitle: 'Save Backup' })
+    await healthSync.saveToDownloads(filename, json)
   } else {
     const blob = new Blob([json], { type: 'application/json' })
     const url = URL.createObjectURL(blob)

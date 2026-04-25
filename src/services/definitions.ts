@@ -15,6 +15,7 @@ export interface HealthSyncPlugin {
   requestPermissions(): Promise<ActivityRecognitionPermission>
   getStepsFromSensor(): Promise<{ steps: number }>
   pinWidget(): Promise<void>
+  saveToDownloads(opts: { text: string; filename: string }): Promise<void>
   // Health Connect
   isHealthConnectAvailable(): Promise<{ available: boolean }>
   checkHealthPermissions(): Promise<{ granted: boolean }>

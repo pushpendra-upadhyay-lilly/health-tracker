@@ -31,6 +31,10 @@ import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import com.getcapacitor.annotation.Permission
+import android.content.ContentValues
+import android.provider.MediaStore
+import android.os.Environment
+import java.io.File
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.CountDownLatch
@@ -255,6 +259,36 @@ class HealthSyncPlugin : Plugin() {
     val provider = ComponentName(context, HealthWidgetReceiver::class.java)
     appWidgetManager.requestPinAppWidget(provider, null, null)
     call.resolve()
+  }
+
+  @PluginMethod
+  fun saveToDownloads(call: PluginCall) {
+    val text     = call.data.optString("text",     "") ?: ""
+    val filename = call.data.optString("filename", "backup.json") ?: "backup.json"
+    CoroutineScope(Dispatchers.IO).launch {
+      try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+          val values = ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, filename)
+            put(MediaStore.Downloads.MIME_TYPE, "application/json")
+            put(MediaStore.Downloads.IS_PENDING, 1)
+          }
+          val resolver = context.contentResolver
+          val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+            ?: throw Exception("Could not create file in Downloads")
+          resolver.openOutputStream(uri)?.use { it.write(text.toByteArray(Charsets.UTF_8)) }
+          values.clear()
+          values.put(MediaStore.Downloads.IS_PENDING, 0)
+          resolver.update(uri, values, null, null)
+        } else {
+          val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+          File(dir, filename).writeText(text, Charsets.UTF_8)
+        }
+        call.resolve()
+      } catch (e: Exception) {
+        call.reject("saveToDownloads failed: ${e.message}", e)
+      }
+    }
   }
 
   // ─── Health Connect ───────────────────────────────────────────────────────

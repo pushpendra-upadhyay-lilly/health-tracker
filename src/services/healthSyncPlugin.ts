@@ -93,6 +93,10 @@ export const healthSync = {
     }
   },
 
+  async saveToDownloads(filename: string, text: string): Promise<void> {
+    await HealthSync.saveToDownloads({ filename, text })
+  },
+
   // ─── Health Connect ────────────────────────────────────────────────────────
 
   async isHealthConnectAvailable(): Promise<boolean> {
