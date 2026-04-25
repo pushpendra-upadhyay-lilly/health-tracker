@@ -1,5 +1,4 @@
 import { Capacitor } from '@capacitor/core'
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
 import { db } from '../db'
 import type { Plan, WorkoutLog, WaterLog, MealLog, BodyMetric, Exercise, UserSettings, CustomFood } from '../db/types'
@@ -19,14 +18,7 @@ interface ExportData {
 
 async function shareOrDownload(json: string, filename: string): Promise<void> {
   if (Capacitor.isNativePlatform()) {
-    await Filesystem.writeFile({
-      path: filename,
-      data: json,
-      directory: Directory.Cache,
-      encoding: Encoding.UTF8,
-    })
-    const { uri } = await Filesystem.getUri({ path: filename, directory: Directory.Cache })
-    await Share.share({ title: filename, files: [uri] })
+    await Share.share({ title: filename, text: json, dialogTitle: 'Save Backup' })
   } else {
     const blob = new Blob([json], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
