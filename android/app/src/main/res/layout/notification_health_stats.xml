@@ -123,7 +123,7 @@
             android:textStyle="bold"
             android:text="+ Add Water" />
 
-        <View
+        <TextView
             android:layout_width="1dp"
             android:layout_height="16dp"
             android:layout_gravity="center_vertical"
