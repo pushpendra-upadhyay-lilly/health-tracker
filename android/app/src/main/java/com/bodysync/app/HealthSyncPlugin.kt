@@ -18,9 +18,6 @@ import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import com.getcapacitor.annotation.Permission
 import androidx.glance.appwidget.updateAll
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
@@ -38,14 +35,17 @@ import kotlinx.coroutines.launch
 )
 class HealthSyncPlugin : Plugin() {
 
-  private fun getSharedPrefs() =
-    context.getSharedPreferences("com.bodysync.app.health", Context.MODE_PRIVATE)
+  private fun dao() = HealthDatabase.getInstance(context).dailyStatsDao()
+  private fun today() = HealthDatabase.todayString()
 
   private fun refreshWidget() {
     CoroutineScope(Dispatchers.Main).launch {
       HealthWidget().updateAll(context)
     }
   }
+
+  private suspend fun getOrCreateToday(): DailyStats =
+    dao().getByDate(today()) ?: DailyStats(date = today())
 
   @PluginMethod
   override fun checkPermissions(call: PluginCall) {
@@ -71,112 +71,106 @@ class HealthSyncPlugin : Plugin() {
 
   @PluginMethod
   fun syncWaterData(call: PluginCall) {
-    try {
-      val goal = call.data.optInt("goal", 3000)
-      val waterTodayObj = call.data.optJSONObject("waterToday")
-      val waterAmount = if (waterTodayObj != null) {
-        val entries = waterTodayObj.optJSONArray("entries")
-        var total = 0
-        if (entries != null) {
-          for (i in 0 until entries.length()) {
-            total += entries.optJSONObject(i)?.optInt("amount", 0) ?: 0
-          }
-        }
-        total
-      } else {
-        0
+    val waterMl = call.data.optInt("waterMl", 0)
+    val goal = call.data.optInt("goal", 3000)
+    CoroutineScope(Dispatchers.IO).launch {
+      try {
+        dao().upsert(getOrCreateToday().copy(waterMl = waterMl, waterGoalMl = goal))
+        refreshWidget()
+        call.resolve()
+      } catch (e: Exception) {
+        call.reject("Failed to sync water data: ${e.message}", e)
       }
-
-      getSharedPrefs().edit()
-        .putInt("bodysync_water_today", waterAmount)
-        .putInt("bodysync_water_goal", goal)
-        .putLong("bodysync_updated_at", System.currentTimeMillis())
-        .apply()
-
-      refreshWidget()
-      call.resolve()
-    } catch (error: Exception) {
-      call.reject("Failed to sync water data: ${error.message}", error)
     }
   }
 
   @PluginMethod
   fun syncMealData(call: PluginCall) {
-    try {
-      val mealCount = call.data.optInt("mealCount", 0)
-      val calories = call.data.optInt("calories", 0)
-      val goal = call.data.optInt("goal", 2000)
-
-      getSharedPrefs().edit()
-        .putInt("bodysync_meals_today", mealCount)
-        .putInt("bodysync_calories_today", calories)
-        .putInt("bodysync_calorie_goal", goal)
-        .putLong("bodysync_updated_at", System.currentTimeMillis())
-        .apply()
-
-      refreshWidget()
-      call.resolve()
-    } catch (error: Exception) {
-      call.reject("Failed to sync meal data: ${error.message}", error)
+    val mealCount = call.data.optInt("mealCount", 0)
+    val calories = call.data.optInt("calories", 0)
+    val goal = call.data.optInt("goal", 2000)
+    CoroutineScope(Dispatchers.IO).launch {
+      try {
+        dao().upsert(getOrCreateToday().copy(
+          mealCount = mealCount,
+          caloriesKcal = calories,
+          calorieGoal = goal,
+        ))
+        refreshWidget()
+        call.resolve()
+      } catch (e: Exception) {
+        call.reject("Failed to sync meal data: ${e.message}", e)
+      }
     }
   }
 
   @PluginMethod
   fun syncWorkoutData(call: PluginCall) {
-    try {
-      val exists = call.data.optBoolean("exists", false)
-      val completed = call.data.optBoolean("completed", false)
-
-      getSharedPrefs().edit()
-        .putBoolean("bodysync_workout_today", exists)
-        .putBoolean("bodysync_workout_completed", completed)
-        .putLong("bodysync_updated_at", System.currentTimeMillis())
-        .apply()
-
-      refreshWidget()
-      call.resolve()
-    } catch (error: Exception) {
-      call.reject("Failed to sync workout data: ${error.message}", error)
+    val exists = call.data.optBoolean("exists", false)
+    val completed = call.data.optBoolean("completed", false)
+    CoroutineScope(Dispatchers.IO).launch {
+      try {
+        dao().upsert(getOrCreateToday().copy(
+          workoutExists = exists,
+          workoutCompleted = completed,
+        ))
+        refreshWidget()
+        call.resolve()
+      } catch (e: Exception) {
+        call.reject("Failed to sync workout data: ${e.message}", e)
+      }
     }
   }
 
   @PluginMethod
   fun syncStepData(call: PluginCall) {
-    try {
-      val steps = call.data.optInt("steps", 0)
-      val goal = call.data.optInt("goal", 10000)
-
-      getSharedPrefs().edit()
-        .putInt("bodysync_steps_today", steps)
-        .putInt("bodysync_step_goal", goal)
-        .putLong("bodysync_updated_at", System.currentTimeMillis())
-        .apply()
-
-      refreshWidget()
-      call.resolve()
-    } catch (error: Exception) {
-      call.reject("Failed to sync step data: ${error.message}", error)
+    val steps = call.data.optInt("steps", 0)
+    val goal = call.data.optInt("goal", 10000)
+    CoroutineScope(Dispatchers.IO).launch {
+      try {
+        dao().upsert(getOrCreateToday().copy(stepsToday = steps, stepGoal = goal))
+        refreshWidget()
+        call.resolve()
+      } catch (e: Exception) {
+        call.reject("Failed to sync step data: ${e.message}", e)
+      }
     }
   }
 
   @PluginMethod
-  fun logWaterFromWidget(call: PluginCall) {
+  fun getPendingWidgetWater(call: PluginCall) {
+    CoroutineScope(Dispatchers.IO).launch {
+      try {
+        val existing = getOrCreateToday()
+        val pending = existing.pendingWaterMl
+        if (pending > 0) {
+          dao().upsert(existing.copy(pendingWaterMl = 0))
+        }
+        val result = JSObject()
+        result.put("amount", pending as Int)
+        call.resolve(result)
+      } catch (e: Exception) {
+        call.reject("Failed to get pending widget water: ${e.message}", e)
+      }
+    }
+  }
+
+  @PluginMethod
+  fun getWidgetAction(call: PluginCall) {
     try {
-      val amount = call.data.optInt("amount", 250)
-
-      getSharedPrefs().edit()
-        .putInt("bodysync_widget_log_water", amount)
-        .apply()
-
-      call.resolve()
-    } catch (error: Exception) {
-      call.reject("Failed to log water from widget: ${error.message}", error)
+      val prefs = context.getSharedPreferences("com.bodysync.app.health", Context.MODE_PRIVATE)
+      val action = prefs.getString("bodysync_widget_action", "") ?: ""
+      prefs.edit().remove("bodysync_widget_action").apply()
+      val result = JSObject()
+      result.put("action", action)
+      call.resolve(result)
+    } catch (e: Exception) {
+      call.reject("Failed to get widget action: ${e.message}", e)
     }
   }
 
   @PluginMethod
   fun getStepsFromSensor(call: PluginCall) {
-    // ACTIVITY_RECOGNITION permission is only required on Android 10+
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
       if (getPermissionState("activityRecognition") != PermissionState.GRANTED) {
         call.reject("PERMISSION_DENIED", "Activity recognition permission is required")
@@ -213,55 +207,23 @@ class HealthSyncPlugin : Plugin() {
       return
     }
 
-    // Calculate today's steps using a stored daily baseline.
-    // TYPE_STEP_COUNTER resets on reboot, so we also handle that case.
-    val prefs = getSharedPrefs()
-    val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+    val prefs = context.getSharedPreferences("com.bodysync.app.health", Context.MODE_PRIVATE)
     val storedDate = prefs.getString("bodysync_sensor_date", "")
-    val baseline = if (storedDate == today) {
+    val todayStr = today()
+    val baseline = if (storedDate == todayStr) {
       prefs.getInt("bodysync_sensor_baseline", totalSteps)
     } else {
       prefs.edit()
-        .putString("bodysync_sensor_date", today)
+        .putString("bodysync_sensor_date", todayStr)
         .putInt("bodysync_sensor_baseline", totalSteps)
         .apply()
       totalSteps
     }
 
-    // If totalSteps < baseline the device rebooted; treat all steps as today's
     val todaySteps = if (totalSteps >= baseline) totalSteps - baseline else totalSteps
-
     val result = JSObject()
     result.put("steps", todaySteps)
     call.resolve(result)
-  }
-
-  @PluginMethod
-  fun getWidgetAction(call: PluginCall) {
-    try {
-      val prefs = getSharedPrefs()
-      val action = prefs.getString("bodysync_widget_action", "") ?: ""
-      prefs.edit().remove("bodysync_widget_action").apply()
-      val result = JSObject()
-      result.put("action", action)
-      call.resolve(result)
-    } catch (error: Exception) {
-      call.reject("Failed to get widget action: ${error.message}", error)
-    }
-  }
-
-  @PluginMethod
-  fun getPendingWidgetWater(call: PluginCall) {
-    try {
-      val prefs = getSharedPrefs()
-      val pending = prefs.getInt("bodysync_widget_water_pending", 0)
-      prefs.edit().putInt("bodysync_widget_water_pending", 0).apply()
-      val result = JSObject()
-      result.put("amount", pending)
-      call.resolve(result)
-    } catch (error: Exception) {
-      call.reject("Failed to get pending widget water: ${error.message}", error)
-    }
   }
 
   @PluginMethod

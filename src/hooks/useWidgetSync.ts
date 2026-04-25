@@ -40,13 +40,12 @@ export function useWidgetSync() {
         ? await db.plans.get(settings.activePlanId)
         : null
 
-      // Ingest any pending widget water into Dexie first
-      const pending = await healthSync.getPendingWidgetWater()
-      if (pending > 0) {
-        // addWater writes to Dexie and calls syncWaterData internally
-        await addWaterRef.current(pending)
+      const pendingAmount = await healthSync.getPendingWidgetWater()
+      if (pendingAmount > 0) {
+        await addWaterRef.current(pendingAmount)
       } else {
-        await healthSync.syncWaterData(waterLog, settings?.waterGoal ?? 3000)
+        const totalMl = waterLog?.entries.reduce((sum, e) => sum + e.amount, 0) ?? 0
+        await healthSync.syncWaterData(totalMl, settings?.waterGoal ?? 3000)
       }
 
       const totalCalories = meals.reduce((sum, m) => sum + m.calories, 0)

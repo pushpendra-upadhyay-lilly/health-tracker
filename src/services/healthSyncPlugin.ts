@@ -4,9 +4,9 @@ import type { HealthSyncPlugin } from './definitions'
 const HealthSync = registerPlugin<HealthSyncPlugin>('HealthSync')
 
 export const healthSync = {
-  async syncWaterData(waterToday: any, goal: number) {
+  async syncWaterData(waterMl: number, goal: number) {
     try {
-      await HealthSync.syncWaterData({ waterToday, goal })
+      await HealthSync.syncWaterData({ waterMl, goal })
     } catch (error) {
       console.error('Failed to sync water data:', error)
     }
@@ -33,14 +33,6 @@ export const healthSync = {
       await HealthSync.syncStepData({ steps, goal })
     } catch (error) {
       console.error('Failed to sync step data:', error)
-    }
-  },
-
-  async logWaterFromWidget(amount: number) {
-    try {
-      await HealthSync.logWaterFromWidget({ amount })
-    } catch (error) {
-      console.error('Failed to log water from widget:', error)
     }
   },
 

@@ -16,16 +16,16 @@ class HealthWidgetReceiver : GlanceAppWidgetReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
     if (intent.action == "com.bodysync.app.LOG_WATER") {
       val amount = intent.getIntExtra("amount", 250)
-      val prefs = context.getSharedPreferences("com.bodysync.app.health", Context.MODE_PRIVATE)
-      val current = prefs.getInt("bodysync_water_today", 0)
-      prefs.edit()
-        .putInt("bodysync_water_today", current + amount)
-        .putLong("bodysync_updated_at", System.currentTimeMillis())
-        .apply()
-
       val result = goAsync()
-      CoroutineScope(Dispatchers.Main).launch {
+      CoroutineScope(Dispatchers.IO).launch {
         try {
+          val dao = HealthDatabase.getInstance(context).dailyStatsDao()
+          val today = HealthDatabase.todayString()
+          val existing = dao.getByDate(today) ?: DailyStats(date = today)
+          dao.upsert(existing.copy(
+            waterMl = existing.waterMl + amount,
+            pendingWaterMl = existing.pendingWaterMl + amount,
+          ))
           HealthWidget().updateAll(context)
         } finally {
           result.finish()

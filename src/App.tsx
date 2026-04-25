@@ -7,6 +7,7 @@ import FloatingTimer from './components/ui/FloatingTimer'
 import { TimerProvider } from './contexts/TimerContext'
 import { db } from './db'
 import { useWidgetSync } from './hooks/useWidgetSync'
+import { useRealtimeWidgetSync } from './hooks/useRealtimeWidgetSync'
 
 // Eagerly loaded — needed before onboarding check resolves
 import Onboarding from './pages/Onboarding'
@@ -40,6 +41,7 @@ function PageBoundary({ children }: { children: React.ReactNode }) {
 
 function AppRoutes() {
   useWidgetSync()
+  useRealtimeWidgetSync()
 
   // Use a tuple: [isLoaded, settings]
   // useLiveQuery returns undefined only while the async query is in-flight

@@ -1,5 +1,3 @@
-import type { WaterLog } from '../db/types'
-
 export type PermissionState = 'granted' | 'denied' | 'prompt' | 'prompt-with-rationale'
 
 export interface ActivityRecognitionPermission {
@@ -7,11 +5,10 @@ export interface ActivityRecognitionPermission {
 }
 
 export interface HealthSyncPlugin {
-  syncWaterData(options: { waterToday?: WaterLog; goal: number }): Promise<void>
+  syncWaterData(options: { waterMl: number; goal: number }): Promise<void>
   syncMealData(options: { mealCount: number; calories: number; goal: number }): Promise<void>
   syncWorkoutData(options: { exists: boolean; completed?: boolean }): Promise<void>
   syncStepData(options: { steps: number; goal: number }): Promise<void>
-  logWaterFromWidget(options: { amount: number }): Promise<void>
   getPendingWidgetWater(): Promise<{ amount: number }>
   getWidgetAction(): Promise<{ action: string }>
   checkPermissions(): Promise<ActivityRecognitionPermission>

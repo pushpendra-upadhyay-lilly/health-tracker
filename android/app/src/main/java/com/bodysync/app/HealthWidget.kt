@@ -34,6 +34,8 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private val BgMain  = Color(0xFF0D0D0D)
 private val BgBadge = Color(0xFF262626)
@@ -47,6 +49,7 @@ private val ColMeals = Color(0xFFF97316)
 class OpenAppCallback : ActionCallback {
     companion object {
         val ActionKey = ActionParameters.Key<String>("widget_action")
+        const val ACTION_LOG_WATER = "log_water"
     }
 
     override suspend fun onAction(
@@ -55,6 +58,22 @@ class OpenAppCallback : ActionCallback {
         parameters: ActionParameters
     ) {
         val action = parameters[ActionKey] ?: return
+
+        if (action == ACTION_LOG_WATER) {
+            withContext(Dispatchers.IO) {
+                val dao = HealthDatabase.getInstance(context).dailyStatsDao()
+                val today = HealthDatabase.todayString()
+                val existing = dao.getByDate(today) ?: DailyStats(date = today)
+                dao.upsert(existing.copy(
+                    waterMl = existing.waterMl + 250,
+                    pendingWaterMl = existing.pendingWaterMl + 250,
+                ))
+            }
+            HealthWidget().updateAll(context)
+            return
+        }
+
+        // All other actions open the app
         context.getSharedPreferences("com.bodysync.app.health", Context.MODE_PRIVATE)
             .edit()
             .putString("bodysync_widget_action", action)
@@ -70,29 +89,22 @@ class OpenAppCallback : ActionCallback {
 class HealthWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val prefs = context.getSharedPreferences("com.bodysync.app.health", Context.MODE_PRIVATE)
-
-        val waterToday    = prefs.getInt("bodysync_water_today",    0)
-        val waterGoal     = prefs.getInt("bodysync_water_goal",     3000)
-        val mealCount     = prefs.getInt("bodysync_meals_today",    0)
-        val calories      = prefs.getInt("bodysync_calories_today", 0)
-        val calorieGoal   = prefs.getInt("bodysync_calorie_goal",   2000)
-        val workoutExists = prefs.getBoolean("bodysync_workout_today",     false)
-        val workoutDone   = prefs.getBoolean("bodysync_workout_completed", false)
-        val steps         = prefs.getInt("bodysync_steps_today", 0)
-        val stepGoal      = prefs.getInt("bodysync_step_goal",  10000)
+        val today = HealthDatabase.todayString()
+        val stats = withContext(Dispatchers.IO) {
+            HealthDatabase.getInstance(context).dailyStatsDao().getByDate(today)
+        } ?: DailyStats(date = today)
 
         provideContent {
             Content(
-                waterToday    = waterToday,
-                waterGoal     = waterGoal,
-                mealCount     = mealCount,
-                calories      = calories,
-                calorieGoal   = calorieGoal,
-                workoutExists = workoutExists,
-                workoutDone   = workoutDone,
-                steps         = steps,
-                stepGoal      = stepGoal
+                waterToday    = stats.waterMl,
+                waterGoal     = stats.waterGoalMl,
+                mealCount     = stats.mealCount,
+                calories      = stats.caloriesKcal,
+                calorieGoal   = stats.calorieGoal,
+                workoutExists = stats.workoutExists,
+                workoutDone   = stats.workoutCompleted,
+                steps         = stats.stepsToday,
+                stepGoal      = stats.stepGoal,
             )
         }
     }
@@ -219,7 +231,7 @@ class HealthWidget : GlanceAppWidget() {
                         .cornerRadius(8.dp)
                         .padding(vertical = 8.dp)
                         .clickable(actionRunCallback<OpenAppCallback>(
-                            actionParametersOf(OpenAppCallback.ActionKey to "nutrition")
+                            actionParametersOf(OpenAppCallback.ActionKey to OpenAppCallback.ACTION_LOG_WATER)
                         )),
                     contentAlignment = Alignment.Center
                 ) {

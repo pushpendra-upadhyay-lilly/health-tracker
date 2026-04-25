@@ -32,7 +32,8 @@ export function useAddWater() {
       await db.waterLogs.put(updatedLog)
     }
     // Sync to widget
-    await healthSync.syncWaterData(updatedLog, settings?.waterGoal ?? 3000)
+    const totalMl = updatedLog.entries.reduce((sum, e) => sum + e.amount, 0)
+    await healthSync.syncWaterData(totalMl, settings?.waterGoal ?? 3000)
   }
 
   return addWater
