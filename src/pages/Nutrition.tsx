@@ -12,6 +12,7 @@ import { db } from '../db'
 import { useTodayMeals } from '../hooks/useTodayMeals'
 import { useTodayWater } from '../hooks/useTodayWater'
 import { formatWater } from '../utils/calculations'
+import { healthSync } from '../services/healthSyncPlugin'
 import type { MealLog } from '../db/types'
 
 export default function Nutrition() {
@@ -23,11 +24,15 @@ export default function Nutrition() {
   const [editingMeal, setEditingMeal] = useState<MealLog | null>(null)
 
   const deleteMeal = async (id: string) => {
+    const meal = await db.mealLogs.get(id)
+    if (meal) healthSync.deleteNutritionRecord(meal.createdAt, meal.createdAt)
     await db.mealLogs.delete(id)
   }
 
   const deleteWaterEntry = async (index: number) => {
     if (!waterLog) return
+    const entry = waterLog.entries[index]
+    healthSync.deleteHydrationRecord(entry.time, entry.time)
     const newEntries = waterLog.entries.filter((_, i) => i !== index)
     if (newEntries.length === 0) {
       await db.waterLogs.delete(waterLog.id)

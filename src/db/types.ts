@@ -161,4 +161,5 @@ export interface UserSettings {
   activePlanId: string | null
   createdAt: string
   geminiApiKey?: string
+  hcBackfillDone?: boolean
 }

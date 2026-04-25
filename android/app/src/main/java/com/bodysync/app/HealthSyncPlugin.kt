@@ -10,14 +10,29 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Build
+import androidx.activity.result.ActivityResult
+import androidx.glance.appwidget.updateAll
+import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.PermissionController
+import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.ExerciseSessionRecord
+import androidx.health.connect.client.records.HydrationRecord
+import androidx.health.connect.client.records.metadata.Metadata as HCMetadata
+import androidx.health.connect.client.records.NutritionRecord
+import androidx.health.connect.client.time.TimeRangeFilter
+import androidx.health.connect.client.units.Energy
+import androidx.health.connect.client.units.Mass
+import androidx.health.connect.client.units.Volume
 import com.getcapacitor.JSObject
 import com.getcapacitor.PermissionState
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
+import com.getcapacitor.annotation.ActivityCallback
 import com.getcapacitor.annotation.CapacitorPlugin
 import com.getcapacitor.annotation.Permission
-import androidx.glance.appwidget.updateAll
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
@@ -240,5 +255,209 @@ class HealthSyncPlugin : Plugin() {
     val provider = ComponentName(context, HealthWidgetReceiver::class.java)
     appWidgetManager.requestPinAppWidget(provider, null, null)
     call.resolve()
+  }
+
+  // ─── Health Connect ───────────────────────────────────────────────────────
+
+  private val hcPermissions = setOf(
+    HealthPermission.getWritePermission(NutritionRecord::class),
+    HealthPermission.getReadPermission(NutritionRecord::class),
+    HealthPermission.getWritePermission(HydrationRecord::class),
+    HealthPermission.getReadPermission(HydrationRecord::class),
+    HealthPermission.getWritePermission(ExerciseSessionRecord::class),
+    HealthPermission.getReadPermission(ExerciseSessionRecord::class),
+  )
+
+  private fun hcClient() = HealthConnectClient.getOrCreate(context)
+
+  @PluginMethod
+  fun isHealthConnectAvailable(call: PluginCall) {
+    val status = HealthConnectClient.getSdkStatus(context)
+    val result = JSObject()
+    result.put("available", status == HealthConnectClient.SDK_AVAILABLE)
+    call.resolve(result)
+  }
+
+  @PluginMethod
+  fun checkHealthPermissions(call: PluginCall) {
+    CoroutineScope(Dispatchers.IO).launch {
+      try {
+        val granted = hcClient().permissionController.getGrantedPermissions()
+        val result = JSObject()
+        result.put("granted", hcPermissions.all { it in granted })
+        call.resolve(result)
+      } catch (e: Exception) {
+        val result = JSObject()
+        result.put("granted", false)
+        call.resolve(result)
+      }
+    }
+  }
+
+  @PluginMethod
+  fun requestHealthPermissions(call: PluginCall) {
+    val intent = PermissionController.createRequestPermissionResultContract()
+      .createIntent(activity, hcPermissions)
+    startActivityForResult(call, intent, "permissionCallback")
+  }
+
+  @ActivityCallback
+  private fun permissionCallback(call: PluginCall?, result: ActivityResult) {
+    if (call == null) return
+    CoroutineScope(Dispatchers.IO).launch {
+      try {
+        val granted = hcClient().permissionController.getGrantedPermissions()
+        val res = JSObject()
+        res.put("granted", hcPermissions.all { it in granted })
+        call.resolve(res)
+      } catch (e: Exception) {
+        val res = JSObject()
+        res.put("granted", false)
+        call.resolve(res)
+      }
+    }
+  }
+
+  @PluginMethod
+  fun writeNutritionRecord(call: PluginCall) {
+    val name      = call.data.optString("name", "Meal")
+    val calories  = call.data.optDouble("calories", 0.0)
+    val protein   = call.data.optDouble("protein", 0.0)
+    val carbs     = call.data.optDouble("carbs", 0.0)
+    val fat       = call.data.optDouble("fat", 0.0)
+    val mealType  = call.data.optString("mealType", "snack")
+    val startTime = call.data.optString("startTime", "") ?: ""
+    CoroutineScope(Dispatchers.IO).launch {
+      try {
+        val start = Instant.parse(startTime)
+        val end   = start.plus(30, ChronoUnit.MINUTES)
+        val mealTypeInt = when (mealType) {
+          "breakfast" -> 1
+          "lunch"     -> 2
+          "dinner"    -> 3
+          else        -> 4
+        }
+        val record = NutritionRecord(
+          name               = name,
+          mealType           = mealTypeInt,
+          energy             = Energy.kilocalories(calories),
+          protein            = Mass.grams(protein),
+          totalCarbohydrate  = Mass.grams(carbs),
+          totalFat           = Mass.grams(fat),
+          startTime          = start,
+          endTime            = end,
+          startZoneOffset    = null,
+          endZoneOffset      = null,
+          metadata           = HCMetadata.manualEntry(),
+        )
+        hcClient().insertRecords(listOf(record))
+        call.resolve()
+      } catch (e: Exception) {
+        call.reject("writeNutritionRecord failed: ${e.message}", e)
+      }
+    }
+  }
+
+  @PluginMethod
+  fun deleteNutritionRecord(call: PluginCall) {
+    val startTime = call.data.optString("startTime", "") ?: ""
+    val endTime   = call.data.optString("endTime",   "") ?: ""
+    CoroutineScope(Dispatchers.IO).launch {
+      try {
+        val start = Instant.parse(startTime)
+        val end   = Instant.parse(endTime).plus(30, ChronoUnit.MINUTES)
+        hcClient().deleteRecords(NutritionRecord::class, TimeRangeFilter.between(start, end))
+        call.resolve()
+      } catch (e: Exception) {
+        call.reject("deleteNutritionRecord failed: ${e.message}", e)
+      }
+    }
+  }
+
+  @PluginMethod
+  fun writeHydrationRecord(call: PluginCall) {
+    val volumeMl  = call.data.optDouble("volumeMl", 0.0)
+    val startTime = call.data.optString("startTime", "") ?: ""
+    CoroutineScope(Dispatchers.IO).launch {
+      try {
+        val start  = Instant.parse(startTime)
+        val end    = start.plus(1, ChronoUnit.MINUTES)
+        val record = HydrationRecord(
+          volume          = Volume.milliliters(volumeMl),
+          startTime       = start,
+          endTime         = end,
+          startZoneOffset = null,
+          endZoneOffset   = null,
+          metadata        = HCMetadata.manualEntry(),
+        )
+        hcClient().insertRecords(listOf(record))
+        call.resolve()
+      } catch (e: Exception) {
+        call.reject("writeHydrationRecord failed: ${e.message}", e)
+      }
+    }
+  }
+
+  @PluginMethod
+  fun deleteHydrationRecord(call: PluginCall) {
+    val startTime = call.data.optString("startTime", "") ?: ""
+    val endTime   = call.data.optString("endTime",   "") ?: ""
+    CoroutineScope(Dispatchers.IO).launch {
+      try {
+        val start = Instant.parse(startTime)
+        val end   = Instant.parse(endTime).plus(1, ChronoUnit.MINUTES)
+        hcClient().deleteRecords(HydrationRecord::class, TimeRangeFilter.between(start, end))
+        call.resolve()
+      } catch (e: Exception) {
+        call.reject("deleteHydrationRecord failed: ${e.message}", e)
+      }
+    }
+  }
+
+  @PluginMethod
+  fun writeExerciseSession(call: PluginCall) {
+    val title        = call.data.optString("title", "Workout")
+    val startTime    = call.data.optString("startTime", "") ?: ""
+    val endTime      = call.data.optString("endTime",   "") ?: ""
+    val exerciseType = call.data.optString("exerciseType", "weights")
+    CoroutineScope(Dispatchers.IO).launch {
+      try {
+        val start = Instant.parse(startTime)
+        val end   = Instant.parse(endTime)
+        val exerciseTypeInt = when (exerciseType) {
+          "cardio" -> ExerciseSessionRecord.EXERCISE_TYPE_OTHER_WORKOUT
+          else     -> ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING
+        }
+        val record = ExerciseSessionRecord(
+          title           = title,
+          exerciseType    = exerciseTypeInt,
+          startTime       = start,
+          endTime         = end,
+          startZoneOffset = null,
+          endZoneOffset   = null,
+          metadata        = HCMetadata.manualEntry(),
+        )
+        hcClient().insertRecords(listOf(record))
+        call.resolve()
+      } catch (e: Exception) {
+        call.reject("writeExerciseSession failed: ${e.message}", e)
+      }
+    }
+  }
+
+  @PluginMethod
+  fun deleteExerciseSession(call: PluginCall) {
+    val startTime = call.data.optString("startTime", "") ?: ""
+    val endTime   = call.data.optString("endTime",   "") ?: ""
+    CoroutineScope(Dispatchers.IO).launch {
+      try {
+        val start = Instant.parse(startTime)
+        val end   = Instant.parse(endTime)
+        hcClient().deleteRecords(ExerciseSessionRecord::class, TimeRangeFilter.between(start, end))
+        call.resolve()
+      } catch (e: Exception) {
+        call.reject("deleteExerciseSession failed: ${e.message}", e)
+      }
+    }
   }
 }

@@ -92,6 +92,7 @@ export default function LogMealModal({
       createdAt: new Date().toISOString(),
     }
     await db.mealLogs.put(meal)
+    healthSync.writeNutritionRecord(meal)
     await syncMealData()
     resetModal()
   }
@@ -106,15 +107,19 @@ export default function LogMealModal({
     const now = new Date().toISOString()
 
     if (editMeal) {
+      healthSync.deleteNutritionRecord(editMeal.createdAt, editMeal.createdAt)
       await db.mealLogs.update(editMeal.id, { mealType, name, calories, protein, carbs, fat })
+      healthSync.writeNutritionRecord({ ...editMeal, mealType, name, calories, protein, carbs, fat })
     } else {
-      await db.mealLogs.put({
+      const newMeal: MealLog = {
         id: uuid(),
         date: getTodayString(),
         mealType,
         name, calories, protein, carbs, fat,
         createdAt: now,
-      })
+      }
+      await db.mealLogs.put(newMeal)
+      healthSync.writeNutritionRecord(newMeal)
       const existing = await db.customFoods.where('name').equals(name).first()
       if (!existing) {
         await db.customFoods.put({ id: uuid(), name, calories, protein, carbs, fat, createdAt: now })

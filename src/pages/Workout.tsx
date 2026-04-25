@@ -164,6 +164,11 @@ export default function Workout() {
     // Sync to widget
     await healthSync.syncWorkoutData(true, updated.completed)
 
+    // Sync completed workout to Health Connect
+    if (!todayWorkout.completed && updated.completed) {
+      healthSync.writeExerciseSession(updated)
+    }
+
     // Haptic feedback on set completion
     if (!wasCompleted && set.completed) {
       if (updated.completed) {

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Download, Upload, Trash2, Bell, ChevronRight, User, ClipboardList, Dumbbell, Bot, Eye, EyeOff, LayoutGrid } from 'lucide-react'
+import { Activity, Download, Upload, Trash2, Bell, ChevronRight, User, ClipboardList, Dumbbell, Bot, Eye, EyeOff, LayoutGrid } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { Capacitor } from '@capacitor/core'
 import { Dialog } from '@capacitor/dialog'
 import { v4 as uuid } from 'uuid'
 import PageHeader from '../components/layout/PageHeader'
@@ -16,16 +17,23 @@ import { getGeminiApiKey, setGeminiApiKey } from '../services/gemini'
 import { getTodayString } from '../utils/dateHelpers'
 import { calculateBMI } from '../utils/calculations'
 import { healthSync } from '../services/healthSyncPlugin'
+import { runHCBackfill } from '../utils/hcBackfill'
 
 export default function Settings() {
   const navigate = useNavigate()
   const settings = useLiveQuery(() => getSettings())
   const { requestPermission, checkPermission, initReminders, stopAllReminders } = useNotifications()
   const [notifGranted, setNotifGranted] = useState(false)
+  const [hcGranted, setHcGranted] = useState(false)
+  const isAndroid = Capacitor.getPlatform() === 'android'
 
   useEffect(() => {
     checkPermission().then(setNotifGranted)
   }, [])
+
+  useEffect(() => {
+    if (isAndroid) healthSync.checkHealthPermissions().then(setHcGranted)
+  }, [isAndroid])
 
   const [name, setName] = useState('')
   const [gender, setGender] = useState<'male' | 'female' | 'other' | null>(null)
@@ -108,6 +116,14 @@ export default function Settings() {
       await initReminders()
     } else {
       await stopAllReminders()
+    }
+  }
+
+  const handleHCConnect = async () => {
+    const granted = await healthSync.requestHealthPermissions()
+    setHcGranted(granted)
+    if (granted && !settings?.hcBackfillDone) {
+      runHCBackfill()
     }
   }
 
@@ -235,6 +251,37 @@ export default function Settings() {
             />
           </div>
         </section>
+
+        {/* Health Connect */}
+        {isAndroid && (
+          <section>
+            <SectionHeader icon={<Activity size={12} />} label="Health Connect" />
+            <Card border padding="sm">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-[#0D0D0D] rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Activity size={16} className={hcGranted ? 'text-[#00FF87]' : 'text-[#555555]'} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-white">Sync to Health Connect</p>
+                  <p className="text-xs text-[#555555]">
+                    {hcGranted ? 'Connected — meals, water & workouts syncing' : 'Sync meals, water and workouts to Health Connect'}
+                  </p>
+                </div>
+                {!hcGranted && (
+                  <button
+                    onClick={handleHCConnect}
+                    className="text-xs font-semibold text-[#00FF87] bg-[#00FF87]/10 border border-[#00FF87]/20 rounded-lg px-3 py-1.5 active:opacity-70 transition-opacity"
+                  >
+                    Connect
+                  </button>
+                )}
+                {hcGranted && (
+                  <span className="text-xs font-medium text-[#00FF87]">Connected</span>
+                )}
+              </div>
+            </Card>
+          </section>
+        )}
 
         {/* Notifications */}
         <section>
